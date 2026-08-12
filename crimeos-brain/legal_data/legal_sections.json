@@ -1,0 +1,117 @@
+{
+  "_disclaimer": "This is an ILLUSTRATIVE dataset for prototype wiring only. Every section number, title, and summary MUST be verified word-for-word against the official BNS 2023 / BNSS 2023 / BSA 2023 bare acts before any production use. Do not cite these in a real legal document without verification.",
+  "sections": [
+    {
+      "act": "BNS",
+      "section": "318",
+      "title": "Cheating",
+      "summary": "Deceiving a person to induce delivery of property or valuable security, causing wrongful loss.",
+      "keywords": ["cheating", "fraud", "deceive", "fake", "scam", "money lost"],
+      "sop_refs": ["SOP-CYB-001", "SOP-CYB-002", "SOP-CYB-005"]
+    },
+    {
+      "act": "BNS",
+      "section": "319",
+      "title": "Cheating by personation",
+      "summary": "Cheating by pretending to be another person, or by knowingly substituting one person for another.",
+      "keywords": ["impersonation", "fake official", "pretending to be bank", "kyc agent", "fake customer care"],
+      "sop_refs": ["SOP-CYB-001", "SOP-CYB-002"]
+    },
+    {
+      "act": "BNS",
+      "section": "308",
+      "title": "Extortion",
+      "summary": "Putting a person in fear of injury to induce delivery of property or valuable security.",
+      "keywords": ["threat", "extortion", "blackmail", "pay or else"],
+      "sop_refs": ["SOP-CYB-001"]
+    },
+    {
+      "act": "BNS",
+      "section": "316",
+      "title": "Criminal breach of trust",
+      "summary": "Dishonest misappropriation of property entrusted to a person.",
+      "keywords": ["invested", "entrusted funds", "trading app", "did not return money"],
+      "sop_refs": ["SOP-CYB-005"]
+    },
+    {
+      "act": "BNS",
+      "section": "351",
+      "title": "Criminal intimidation",
+      "summary": "Threatening a person with injury to person, reputation, or property to cause alarm.",
+      "keywords": ["threat", "intimidation", "stalking threat"],
+      "sop_refs": ["SOP-CYB-003"]
+    },
+    {
+      "act": "BNS",
+      "section": "78",
+      "title": "Stalking",
+      "summary": "Monitoring or repeatedly contacting a person despite disinterest, including online monitoring/contact.",
+      "keywords": ["stalking", "repeated messages", "unwanted contact", "following online"],
+      "sop_refs": ["SOP-CYB-003"]
+    },
+    {
+      "act": "BNS",
+      "section": "77",
+      "title": "Voyeurism",
+      "summary": "Capturing or publishing images of a person engaging in a private act without consent.",
+      "keywords": ["voyeurism", "private images", "captured without consent"],
+      "sop_refs": ["SOP-CYB-003"]
+    },
+    {
+      "act": "BNS",
+      "section": "137",
+      "title": "Kidnapping",
+      "summary": "Taking or enticing a minor or person of unsound mind out of lawful guardianship, or abduction.",
+      "keywords": ["missing minor", "abduction", "kidnapping", "taken away"],
+      "sop_refs": ["SOP-GEN-004"]
+    },
+    {
+      "act": "BNS",
+      "section": "3(5)",
+      "title": "Common intention",
+      "summary": "Acts done by several persons in furtherance of a common intention make each person liable as if done alone.",
+      "keywords": ["multiple accused", "gang", "organized fraud", "group scam"],
+      "sop_refs": ["SOP-CYB-005"]
+    },
+    {
+      "act": "BNSS",
+      "section": "94",
+      "title": "Summons to produce document or thing",
+      "summary": "Empowers a court/police officer to require production of a document or thing necessary for investigation.",
+      "keywords": ["bank records", "documents", "produce records", "statement request"],
+      "sop_refs": ["SOP-CYB-001", "SOP-CYB-002", "SOP-CYB-003", "SOP-CYB-005"]
+    },
+    {
+      "act": "BNSS",
+      "section": "105",
+      "title": "Search and seizure procedure",
+      "summary": "Procedure governing search of place and seizure of property/documents during investigation.",
+      "keywords": ["search", "seizure", "device seizure", "forensic imaging"],
+      "sop_refs": ["SOP-CYB-001", "SOP-CYB-003"]
+    },
+    {
+      "act": "BNSS",
+      "section": "176",
+      "title": "Procedure for investigation",
+      "summary": "General procedure to be followed by police in conducting an investigation.",
+      "keywords": ["investigation procedure", "missing person investigation"],
+      "sop_refs": ["SOP-GEN-004"]
+    },
+    {
+      "act": "BSA",
+      "section": "63",
+      "title": "Admissibility of electronic records",
+      "summary": "Conditions under which electronic records are admissible as evidence, including the certificate requirement.",
+      "keywords": ["electronic evidence", "digital evidence", "screenshot", "call recording", "admissibility"],
+      "sop_refs": ["SOP-CYB-001", "SOP-CYB-002", "SOP-CYB-003", "SOP-CYB-005"]
+    },
+    {
+      "act": "BSA",
+      "section": "64",
+      "title": "Proof of contents of electronic records via certificate",
+      "summary": "Requires an accompanying certificate identifying the electronic record and describing the manner of production for it to be admitted.",
+      "keywords": ["certificate", "65b equivalent", "electronic record proof"],
+      "sop_refs": ["SOP-CYB-001", "SOP-CYB-002", "SOP-CYB-003", "SOP-CYB-005"]
+    }
+  ]
+}

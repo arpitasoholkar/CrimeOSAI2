@@ -1,0 +1,10 @@
+{
+  "name": "crimeos-system",
+  "private": true,
+  "scripts": {
+    "start:all": "concurrently -n BACKEND,BRAIN,FRONTEND -c blue,green,cyan \"npm run dev --prefix crime-os-backend\" \"npm start --prefix crimeos-brain\" \"npm run dev --prefix crimeos-frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

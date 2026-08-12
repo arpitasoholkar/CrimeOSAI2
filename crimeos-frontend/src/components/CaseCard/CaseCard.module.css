@@ -1,0 +1,187 @@
+.row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.4fr) minmax(140px, 1fr) minmax(120px, 1fr) minmax(90px, 0.8fr) 40px;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 12px;
+  border-radius: var(--radius-lg);
+  border: 1px solid transparent;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+
+.row:hover {
+  background: var(--card-hover);
+  border-color: var(--border-soft);
+}
+
+.identity {
+  min-width: 0;
+}
+
+.id {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.title {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.statusCol {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.statusBadge {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.statusInvestigation {
+  background: var(--violet-soft);
+  color: var(--violet);
+}
+.statusPending {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+.statusResolved {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.riskBadge {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+.riskHigh {
+  color: var(--danger);
+}
+.riskMedium {
+  color: var(--warning);
+}
+.riskLow {
+  color: var(--success);
+}
+
+.evidenceCol {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.evidenceLabel {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.evidenceIcons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.evidenceChip {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+}
+
+.evidenceChip.pdf {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.evidenceChip.image {
+  background: var(--success-soft);
+  color: var(--success);
+}
+.evidenceChip.audio {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.evidenceMore {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+
+.updatedCol {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.updatedLabel {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.updatedValue {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.openBtn {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text-secondary);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  justify-self: end;
+}
+
+.openBtn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+@media (max-width: 860px) {
+  .row {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      'identity identity'
+      'status evidence'
+      'updated open';
+    row-gap: 10px;
+    border: 1px solid var(--border-soft);
+    margin-bottom: 8px;
+  }
+  .identity {
+    grid-area: identity;
+  }
+  .statusCol {
+    grid-area: status;
+  }
+  .evidenceCol {
+    grid-area: evidence;
+    align-items: flex-end;
+  }
+  .updatedCol {
+    grid-area: updated;
+  }
+  .openBtn {
+    grid-area: open;
+  }
+}

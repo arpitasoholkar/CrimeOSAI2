@@ -1,0 +1,106 @@
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: var(--shadow-sm);
+  min-width: 0;
+}
+
+.top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.spark {
+  width: 58px;
+  height: 22px;
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+.sparkLine {
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  opacity: 0.85;
+}
+
+.sparkLine.accent {
+  stroke: var(--accent);
+}
+.sparkLine.warning {
+  stroke: var(--warning);
+}
+.sparkLine.violet {
+  stroke: var(--violet);
+}
+.sparkLine.success {
+  stroke: var(--success);
+}
+
+.iconWrap {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: grid;
+  place-items: center;
+}
+
+.accent {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.warning {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+.violet {
+  background: var(--violet-soft);
+  color: var(--violet);
+}
+.success {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.label {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.value {
+  margin: 2px 0 0;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.trend {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.trendUp {
+  color: var(--success);
+  font-weight: 700;
+}

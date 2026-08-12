@@ -1,0 +1,309 @@
+<!-- public/index.html -->
+<!-- Reads ?case_id=... from the URL, fetches the real case from shared MongoDB,
+     shows the complaint + AI suggestion with checkboxes, and saves ONLY the
+     officer-selected steps/legal-sections back into the case's "reports" array.
+     Also offers a "Crime OS" button that builds a summary from the latest
+     approved report and (if configured server-side) sends it to Crime OS. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>AI Investigation Path Assistant</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; color: #222; }
+  h1 { font-size: 22px; }
+  textarea { width: 100%; box-sizing: border-box; font-family: inherit; font-size: 14px; }
+  .step, .legal-item { border: 1px solid #ddd; border-radius: 6px; padding: 10px; margin: 8px 0; }
+  .confidence { font-weight: bold; padding: 4px 8px; border-radius: 4px; display: inline-block; }
+  .conf-high { background: #d4edda; color: #155724; }
+  .conf-mid { background: #fff3cd; color: #856404; }
+  .conf-low { background: #f8d7da; color: #721c24; }
+  .muted { color: #666; font-size: 13px; }
+  .warning { background: #fff3cd; padding: 10px; border-radius: 6px; margin: 10px 0; }
+  .danger { background: #f8d7da; padding: 10px; border-radius: 6px; margin: 10px 0; }
+  button { padding: 8px 16px; margin-top: 8px; cursor: pointer; }
+  button:disabled { cursor: not-allowed; opacity: 0.5; }
+</style>
+</head>
+<body>
+
+<h1>AI Investigation Path Assistant — Officer Review</h1>
+<p class="muted">
+  Every suggestion below is generated from SOP text. The officer decides which
+  legal sections apply and which investigation steps to follow — only the
+  selected items below are saved as the official case record.
+</p>
+
+<div id="content">Loading...</div>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const caseId = params.get("case_id");
+let currentAnalysis = null;
+let hasApprovedReport = false; // gates the Crime OS button
+
+function confidenceClass(conf) {
+  if (conf >= 0.7) return "conf-high";
+  if (conf >= 0.4) return "conf-mid";
+  return "conf-low";
+}
+
+// Escape user/LLM-sourced text before dropping it into innerHTML, so stray
+// "<" or "&" in complaint text / SOP output can't break the layout.
+function escapeHtml(str) {
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+async function load() {
+  const content = document.getElementById("content");
+
+  if (!caseId) {
+    content.innerHTML = `<p class="muted">No case_id provided in the URL. Open this page as
+      <code>index.html?case_id=CASE-000008</code>.</p>`;
+    return;
+  }
+
+  content.textContent = "Loading case...";
+
+  try {
+    const res = await fetch(`/api/case/${caseId}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to load case");
+    render(data);
+  } catch (err) {
+    content.textContent = "Error: " + err.message;
+  }
+}
+
+function render(c) {
+  const a = c.analysis || {};
+  currentAnalysis = a;
+  const complaintText = (c.evidence || []).map(e => e.raw_text).filter(Boolean).join("\n\n");
+
+  let html = `
+    <h2>Case: ${escapeHtml(c.case_id)}</h2>
+    <p class="muted">Status: ${escapeHtml(c.status)}</p>
+    <h3>Complaint</h3>
+    <p>${complaintText ? escapeHtml(complaintText) : "(no text found)"}</p>
+  `;
+
+  // FIX: an empty array ([]) is truthy in JS, so the old check
+  // `if (!a.investigationPath)` treated "analysis exists but is empty"
+  // the same as "fully generated" -- rendering the whole approve UI with
+  // nothing in it ("None matched", empty steps/legal sections lists).
+  // We now also check .length so a genuinely empty result correctly
+  // falls back to the "not generated yet / run again" state.
+  const hasAnalysis = Array.isArray(a.investigationPath) && a.investigationPath.length > 0;
+
+  // Checkbox state rule:
+  // - No approval saved yet for this case -> everything defaults to CHECKED
+  //   (the AI considers all suggestions relevant; officer unchecks what
+  //   doesn't apply).
+  // - An approval already exists -> re-render reflects exactly what the
+  //   officer last ticked/unticked, using each item's stable `id`
+  //   (added in investigationEngine.js) to match against the latest saved
+  //   report. This persists across reloads instead of resetting to
+  //   all-checked every time.
+  const reports = c.reports || [];
+  const latestReport = reports.length ? reports[reports.length - 1] : null;
+  hasApprovedReport = !!latestReport;
+  const approvedStepIds = latestReport
+    ? new Set((latestReport.approvedSteps || []).map((s) => s.id).filter(Boolean))
+    : null; // null = no prior approval -> default everything to checked
+  const approvedLegalIds = latestReport
+    ? new Set((latestReport.approvedLegalSections || []).map((s) => s.id).filter(Boolean))
+    : null;
+
+  if (!hasAnalysis) {
+    const ranButEmpty = a && Object.prototype.hasOwnProperty.call(a, "investigationPath");
+    html += `
+      <p class="muted">${
+        ranButEmpty
+          ? "AI analysis ran but returned no investigation steps (low SOP match, or the complaint text may be missing/unclear). You can re-run it below."
+          : "AI analysis not generated yet for this case."
+      }</p>
+      <button id="runBtn">Run AI Investigation Now</button>
+    `;
+  } else {
+    const cls = confidenceClass(a.confidence);
+    html += `
+      <h3>Confidence: <span class="confidence ${cls}">${(a.confidence * 100).toFixed(0)}%</span></h3>
+      <details>
+        <summary>Why this score?</summary>
+        <pre>${escapeHtml(JSON.stringify(a.confidenceBreakdown, null, 2))}</pre>
+      </details>
+
+      ${(a.gaps && a.gaps.length) ? `
+        <div class="warning"><strong>Missing info to ask about:</strong>
+        <ul>${a.gaps.map(g => `<li>${escapeHtml(g)}</li>`).join("")}</ul></div>` : ""}
+
+      ${(a.escalation && a.escalation.required) ? `
+        <div class="danger"><strong>⚠️ Escalation recommended:</strong> ${escapeHtml(a.escalation.reason || "")}</div>` : ""}
+
+      ${(a.unverifiedSectionMentions && a.unverifiedSectionMentions.length) ? `
+        <div class="danger"><strong>⚠️ Unverified section mentions:</strong> ${
+          a.unverifiedSectionMentions.map(m => `${escapeHtml(m.act)} ${escapeHtml(m.section)}`).join(", ")
+        }</div>` : ""}
+
+      <p><strong>Matched SOP(s):</strong> ${(a.matchedSopIds || []).map(escapeHtml).join(", ") || "None matched"}</p>
+
+      <h3>Investigation steps — select the ones the officer will follow</h3>
+      <div id="stepsContainer">
+        ${(a.investigationPath || []).map((s, i) => {
+          const isChecked = approvedStepIds === null || approvedStepIds.has(s.id);
+          return `
+          <div class="step">
+            <label><input type="checkbox" ${isChecked ? "checked" : ""} data-step-keep="${i}" data-step-id="${escapeHtml(s.id || "")}" /> Follow this step</label>
+            <textarea rows="2" data-step-text="${i}">${escapeHtml(s.action || "")}</textarea>
+            <div class="muted">Grounded in: ${escapeHtml(s.grounded_in || "n/a")}</div>
+          </div>
+        `;
+        }).join("")}
+      </div>
+
+      <h3>Legal sections — select the ones that apply</h3>
+      <div id="legalContainer">
+        ${(a.legalSections || []).map((sec, i) => {
+          const isChecked = approvedLegalIds === null || approvedLegalIds.has(sec.id);
+          return `
+          <div class="legal-item">
+            <label>
+              <input type="checkbox" ${isChecked ? "checked" : ""} data-legal-keep="${i}" data-legal-id="${escapeHtml(sec.id || "")}" />
+              <strong>${escapeHtml(sec.citation)}</strong> — ${escapeHtml(sec.summary)}
+              <span class="muted">(matched via: ${escapeHtml(sec.matchedVia)})</span>
+            </label>
+          </div>
+        `;
+        }).join("")}
+      </div>
+
+      <label for="officerNotes"><strong>Officer notes / overrides</strong></label>
+      <textarea id="officerNotes" rows="3"></textarea>
+      <br />
+      <button id="approveBtn">Approve selected & save to case</button>
+      <p id="approveStatus" class="muted"></p>
+
+      <h3>Approval history</h3>
+      <pre id="reportsHistory">${escapeHtml(JSON.stringify(c.reports || [], null, 2))}</pre>
+
+      <h3>Crime OS</h3>
+      <p class="muted">
+        Builds a summary from the latest APPROVED report above and sends it to Crime OS
+        (or shows it locally if Crime OS isn't configured yet).
+      </p>
+      <button id="crimeOsBtn" ${hasApprovedReport ? "" : "disabled"}>
+        ${hasApprovedReport ? "Send / View Crime OS Summary" : "Approve a report first"}
+      </button>
+      <p id="crimeOsStatus" class="muted"></p>
+      <pre id="crimeOsResult" style="display:none;"></pre>
+    `;
+  }
+
+  document.getElementById("content").innerHTML = html;
+
+  const runBtn = document.getElementById("runBtn");
+  if (runBtn) runBtn.addEventListener("click", runAnalysis);
+
+  const approveBtn = document.getElementById("approveBtn");
+  if (approveBtn) approveBtn.addEventListener("click", approveSelection);
+
+  const crimeOsBtn = document.getElementById("crimeOsBtn");
+  if (crimeOsBtn) crimeOsBtn.addEventListener("click", getCrimeOsSummary);
+}
+
+async function runAnalysis() {
+  document.getElementById("content").innerHTML = "Running AI investigation...";
+  try {
+    const res = await fetch("/api/investigate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ case_id: caseId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to run investigation");
+    load();
+  } catch (err) {
+    document.getElementById("content").textContent = "Error: " + err.message;
+  }
+}
+
+async function approveSelection() {
+  const stepTextareas = document.querySelectorAll("[data-step-text]");
+  const stepKeeps = document.querySelectorAll("[data-step-keep]");
+  const selectedSteps = [];
+  stepTextareas.forEach((ta, i) => {
+    if (stepKeeps[i].checked) {
+      const originalStep = (currentAnalysis.investigationPath || [])[i] || {};
+      selectedSteps.push({
+        id: originalStep.id,
+        step: selectedSteps.length + 1,
+        action: ta.value,
+      });
+    }
+  });
+
+  const legalKeeps = document.querySelectorAll("[data-legal-keep]");
+  const selectedLegal = [];
+  (currentAnalysis.legalSections || []).forEach((sec, i) => {
+    if (legalKeeps[i].checked) selectedLegal.push(sec); // sec already includes id
+  });
+
+  const payload = {
+    steps: selectedSteps,
+    legalSections: selectedLegal,
+    officerNotes: document.getElementById("officerNotes").value,
+  };
+
+  const statusEl = document.getElementById("approveStatus");
+  statusEl.textContent = "Saving...";
+
+  try {
+    const res = await fetch(`/api/case/${caseId}/approve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to save");
+    statusEl.textContent = `Saved at ${data.report.decidedAt} — ${selectedSteps.length} step(s), ${selectedLegal.length} section(s) approved.`;
+    load(); // reload so the approval history section (and Crime OS button) reflect the new state
+  } catch (err) {
+    statusEl.textContent = "Error: " + err.message;
+  }
+}
+
+async function getCrimeOsSummary() {
+  const statusEl = document.getElementById("crimeOsStatus");
+  const resultEl = document.getElementById("crimeOsResult");
+  statusEl.textContent = "Contacting Crime OS...";
+  resultEl.style.display = "none";
+
+  try {
+    const res = await fetch(`/api/case/${caseId}/crimeos-summary`, { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to get Crime OS summary");
+
+  if (data.status === "sent") {
+    window.open(
+        "http://localhost:5173/case/" + caseId,
+        "_blank"
+    );
+    return;
+}
+
+statusEl.textContent = data.note || "Summary generated.";
+resultEl.textContent = JSON.stringify(data.summary || data, null, 2);
+resultEl.style.display = "block";
+  } catch (err) {
+    statusEl.textContent = "Error: " + err.message;
+  }
+}
+
+load();
+</script>
+</body>
+</html>

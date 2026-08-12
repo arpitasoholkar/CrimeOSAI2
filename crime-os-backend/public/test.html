@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Crime OS AI — Ingest Test</title>
+
+<style>
+  body {
+    font-family: system-ui, sans-serif;
+    max-width: 750px;
+    margin: 40px auto;
+    padding: 0 20px;
+  }
+
+  textarea {
+    width: 100%;
+    height: 150px;
+    font-family: inherit;
+    font-size: 14px;
+    padding: 8px;
+  }
+
+  input[type="text"] {
+    width: 100%;
+    padding: 8px;
+    font-size: 14px;
+    margin-bottom: 15px;
+  }
+
+  button {
+    margin-top: 10px;
+    padding: 10px 20px;
+    cursor: pointer;
+  }
+
+  pre {
+    background: #f4f4f4;
+    padding: 15px;
+    border-radius: 6px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  hr {
+    margin: 35px 0;
+  }
+</style>
+</head>
+
+<body>
+
+<h1>Crime OS AI — Ingest Test Harness</h1>
+
+<h3>Case ID</h3>
+
+<input
+  id="caseId"
+  type="text"
+  placeholder="Leave blank to create a new case"
+/>
+
+<p>
+Leave the Case ID blank to create a new case.
+If a Case ID is present, new evidence will be added to that case.
+</p>
+
+<h3>Paste Complaint Text</h3>
+
+<textarea id="rawText">
+Sir, I got a call from an unknown number 9876543210 asking to pay Rs. 5000 via UPI to fraud@oksbi. The payment was made on 15/03/2025 through PhonePe.
+</textarea>
+
+<br>
+
+<button id="submitBtn">Submit Text</button>
+
+<hr>
+
+<h3>Upload PDF Complaint</h3>
+
+<input type="file" id="pdfFile" accept="application/pdf">
+
+<br>
+
+<button id="submitPdfBtn">Submit PDF</button>
+
+<hr>
+
+<h3>Upload Image (OCR)</h3>
+
+<input type="file" id="imageFile" accept="image/*">
+
+<br>
+
+<button id="submitImageBtn">Submit Image</button>
+
+<hr>
+
+<h3>Upload Audio</h3>
+
+<input type="file" id="audioFile" accept="audio/*">
+
+<br>
+
+<button id="submitAudioBtn">Submit Audio</button>
+
+<hr>
+
+<h2>Response</h2>
+
+<pre id="output">(nothing yet)</pre>
+
+<div id="linkContainer"></div>
+
+<script>
+
+const caseInput = document.getElementById("caseId");
+
+// Port your teammate's AI service (crimeos-brain) is running on.
+const AI_SERVICE_PORT = 3001;
+
+async function submitAndShow(fetchPromise) {
+
+    const output = document.getElementById("output");
+    const linkContainer = document.getElementById("linkContainer");
+
+    output.textContent = "Loading...";
+    linkContainer.innerHTML = "";
+
+    try {
+
+        const res = await fetchPromise;
+
+        const data = await res.json();
+
+        output.textContent = JSON.stringify(data, null, 2);
+
+        if (data.case_id) {
+            caseInput.value = data.case_id;
+
+            const url = `http://localhost:${AI_SERVICE_PORT}/?case_id=${data.case_id}`;
+
+            linkContainer.innerHTML = `
+              <a href="${url}" target="_blank" style="display:inline-block; margin-top:10px; font-weight:bold; font-size:16px;">
+                View AI Investigation →
+              </a>
+            `;
+        }
+
+    } catch (err) {
+
+        output.textContent = "Error: " + err.message;
+
+    }
+
+}
+
+document.getElementById("submitBtn").addEventListener("click", () => {
+
+    const text = document.getElementById("rawText").value;
+
+    submitAndShow(
+
+        fetch("/ingest", {
+
+            method: "POST",
+
+            headers: {
+
+                "Content-Type": "application/json"
+
+            },
+
+            body: JSON.stringify({
+
+                text,
+
+                case_id: caseInput.value.trim() || undefined
+
+            })
+
+        })
+
+    );
+
+});
+
+document.getElementById("submitPdfBtn").addEventListener("click", () => {
+
+    const file = document.getElementById("pdfFile").files[0];
+
+    if (!file) {
+
+        document.getElementById("output").textContent = "Choose a PDF first.";
+
+        return;
+
+    }
+
+    const formData = new FormData();
+
+    formData.append("file", file);
+
+    if (caseInput.value.trim()) {
+
+        formData.append("case_id", caseInput.value.trim());
+
+    }
+
+    submitAndShow(
+
+        fetch("/ingest", {
+
+            method: "POST",
+
+            body: formData
+
+        })
+
+    );
+
+});
+
+document.getElementById("submitImageBtn").addEventListener("click", () => {
+
+    const file = document.getElementById("imageFile").files[0];
+
+    if (!file) {
+
+        document.getElementById("output").textContent = "Choose an image first.";
+
+        return;
+
+    }
+
+    const formData = new FormData();
+
+    formData.append("file", file);
+
+    if (caseInput.value.trim()) {
+
+        formData.append("case_id", caseInput.value.trim());
+
+    }
+
+    submitAndShow(
+
+        fetch("/ingest", {
+
+            method: "POST",
+
+            body: formData
+
+        })
+
+    );
+
+});
+
+document.getElementById("submitAudioBtn").addEventListener("click", () => {
+
+    const file = document.getElementById("audioFile").files[0];
+
+    if (!file) {
+
+        document.getElementById("output").textContent = "Choose an audio file first.";
+
+        return;
+
+    }
+
+    const formData = new FormData();
+
+    formData.append("file", file);
+
+    if (caseInput.value.trim()) {
+
+        formData.append("case_id", caseInput.value.trim());
+
+    }
+
+    submitAndShow(
+
+        fetch("/ingest", {
+
+            method: "POST",
+
+            body: formData
+
+        })
+
+    );
+
+});
+
+</script>
+
+</body>
+</html>
