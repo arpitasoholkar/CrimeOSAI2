@@ -58,11 +58,6 @@ const createCase = async (req, res) => {
     // =====================================================
     // CREATE CASE OBJECT
     // =====================================================
-    // FIX: schema's identity field is `case_id` (snake_case) --
-    // it's `required` and `unique`. This was previously being set as
-    // `caseId` (camelCase), a field that doesn't exist in the schema,
-    // which would leave `case_id` unset and throw a validation error
-    // on save.
 
     const newCase = new Case({
       case_id: caseId,
@@ -152,8 +147,8 @@ const createCase = async (req, res) => {
 const getCaseById = async (req, res) => {
   try {
     const caseData = await Case.findOne({
-  case_id: req.params.case_id,
-});
+      case_id: req.params.case_id,
+    });
 
     if (!caseData) {
       return res.status(404).json({
@@ -182,18 +177,6 @@ const getCaseById = async (req, res) => {
 // =========================================================
 //
 // POST /cases/:id/requests/generate
-//
-// Flow:
-//
-// Case
-//   ↓
-// Fill Handlebars template
-//   ↓
-// Create request
-//   ↓
-// status = draft
-//   ↓
-// Save request
 //
 
 const generateLegalRequest = async (req, res) => {
@@ -225,9 +208,6 @@ const generateLegalRequest = async (req, res) => {
     // -----------------------------------------------------
     // FIND CASE
     // -----------------------------------------------------
-    // FIX: was `Case.findOne({ caseId: req.params.id })` -- schema
-    // has no `caseId` field, so this always returned null ("Case not
-    // found") for every case created by Part 2 or by the fixed createCase.
 
     const caseData = await Case.findOne({
       case_id: req.params.case_id,
@@ -284,20 +264,20 @@ const generateLegalRequest = async (req, res) => {
     // -----------------------------------------------------
 
     const auditEntry = createHashedAuditEntry({
-  action: "REQUEST_GENERATED",
+      action: "REQUEST_GENERATED",
 
-  actor: "SYSTEM",
+      actor: "SYSTEM",
 
-  details: {
-    requestId,
-    requestType,
-    provider,
-  },
+      details: {
+        requestId,
+        requestType,
+        provider,
+      },
 
-  auditLog: caseData.auditLog,
-});
+      auditLog: caseData.auditLog,
+    });
 
-caseData.auditLog.push(auditEntry);
+    caseData.auditLog.push(auditEntry);
 
     // -----------------------------------------------------
     // SAVE CASE
@@ -337,7 +317,7 @@ caseData.auditLog.push(auditEntry);
 // APPROVE LEGAL REQUEST
 // =========================================================
 //
-// POST /cases/:id/requests/:requestId/approve
+// POST /cases/:case_id/requests/:requestId/approve
 //
 // Flow:
 //
@@ -354,7 +334,7 @@ const approveLegalRequest = async (req, res) => {
 
     const { approvedBy } = req.body;
 
-    const { id, requestId } = req.params;
+    const { case_id, requestId } = req.params;
 
     // -----------------------------------------------------
     // VALIDATE OFFICER
@@ -370,10 +350,9 @@ const approveLegalRequest = async (req, res) => {
     // -----------------------------------------------------
     // FIND CASE
     // -----------------------------------------------------
-    // FIX: was `caseId` -- corrected to `case_id`.
 
     const caseData = await Case.findOne({
-      case_id: id,
+      case_id,
     });
 
     if (!caseData) {
@@ -482,7 +461,7 @@ const approveLegalRequest = async (req, res) => {
 // DISPATCH LEGAL REQUEST
 // =========================================================
 //
-// POST /cases/:id/requests/:requestId/dispatch
+// POST /cases/:case_id/requests/:requestId/dispatch
 //
 // Flow:
 //
@@ -503,7 +482,7 @@ const dispatchLegalRequest = async (req, res) => {
 
     const { providerEmail } = req.body;
 
-    const { id, requestId } = req.params;
+    const { case_id, requestId } = req.params;
 
     // -----------------------------------------------------
     // VALIDATE PROVIDER EMAIL
@@ -520,10 +499,9 @@ const dispatchLegalRequest = async (req, res) => {
     // -----------------------------------------------------
     // FIND CASE
     // -----------------------------------------------------
-    // FIX: was `caseId` -- corrected to `case_id`.
 
     const caseData = await Case.findOne({
-      case_id: id,
+      case_id,
     });
 
     if (!caseData) {
@@ -594,6 +572,7 @@ const dispatchLegalRequest = async (req, res) => {
 
     requestData.previewUrl =
       dispatchResult.previewUrl;
+    requestData.delivered = dispatchResult.delivered || false;
 
     // -----------------------------------------------------
     // ASSIGN SLA DEADLINE
@@ -682,28 +661,6 @@ const dispatchLegalRequest = async (req, res) => {
 //
 // POST /cases/:case_id/request/:requestId/response
 //
-// This is STEP 5 of the investigation loop: a provider (bank/telecom)
-// has replied to a dispatched legal request. There's no automated
-// document-parsing pipeline for provider replies, so the officer
-// transcribes the relevant fields here. Recording a response:
-//
-//   1. marks the request "completed"
-//   2. appends any structured fields as case entities (so the graph /
-//      known-vs-missing picture picks them up)
-//   3. triggers AI re-investigation ("legal_response_received")
-//
-// Flow:
-//
-// sent
-//   ↓
-// Officer records response
-//   ↓
-// completed
-//   ↓
-// New entities attached
-//   ↓
-// Re-investigation triggered
-//
 
 const recordLegalResponse = async (req, res) => {
   try {
@@ -760,8 +717,6 @@ const recordLegalResponse = async (req, res) => {
     // -----------------------------------------------------
     // ATTACH STRUCTURED FIELDS AS CASE ENTITIES
     // -----------------------------------------------------
-    // Only real, officer-transcribed fields become entities -- nothing
-    // is inferred or invented here.
 
     const ENTITY_TYPE_LABELS = {
       accountHolder: "ACCOUNT_HOLDER",
@@ -837,11 +792,6 @@ const recordLegalResponse = async (req, res) => {
 //
 // POST /cases/:case_id/reinvestigate
 //
-// The officer's "Re-investigate" button. Unlike the automatic triggers
-// (evidence upload, legal response), this one is awaited -- the officer
-// is on the page waiting for the result -- so it returns the new
-// investigation version directly instead of firing-and-forgetting.
-//
 
 const manualReinvestigate = async (req, res) => {
   try {
@@ -884,10 +834,6 @@ const manualReinvestigate = async (req, res) => {
 //
 // GET /cases/:case_id/investigation/versions
 //
-// Convenience read -- the versions already live on the case document,
-// this just returns them directly (lightest fields first) for the
-// "AI Investigation History" panel.
-//
 
 const getInvestigationVersions = async (req, res) => {
   try {
@@ -924,21 +870,6 @@ const getInvestigationVersions = async (req, res) => {
 // =========================================================
 //
 // POST /cases/:id/summary/generate
-//
-// Flow:
-//
-// Case ID
-//    ↓
-// Find case
-//    ↓
-// Generate summary from current case data
-//    (now includes Part 2's investigation output: analysis + reports)
-//    ↓
-// Save summary snapshot
-//    ↓
-// Add audit log
-//    ↓
-// Return generated summary
 //
 
 const generateSummary = async (req, res) => {
@@ -978,35 +909,35 @@ const generateSummary = async (req, res) => {
     // ADD AUDIT LOG
     // -----------------------------------------------------
 
-   const auditEntry = createHashedAuditEntry({
-  action: "SUMMARY_GENERATED",
+    const auditEntry = createHashedAuditEntry({
+      action: "SUMMARY_GENERATED",
 
-  actor: "SYSTEM",
+      actor: "SYSTEM",
 
-  details: {
-    totalRequests:
-      generatedSummary.statistics.totalRequests,
+      details: {
+        totalRequests:
+          generatedSummary.statistics.totalRequests,
 
-    overdueRequests:
-      generatedSummary.statistics.overdueRequests,
+        overdueRequests:
+          generatedSummary.statistics.overdueRequests,
 
-    totalEvidenceFiles:
-      generatedSummary.statistics.totalEvidenceFiles,
+        totalEvidenceFiles:
+          generatedSummary.statistics.totalEvidenceFiles,
 
-    matchedSopIds:
-      generatedSummary.statistics.matchedSopIds,
+        matchedSopIds:
+          generatedSummary.statistics.matchedSopIds,
 
-    approvedStepCount:
-      generatedSummary.statistics.approvedStepCount,
+        approvedStepCount:
+          generatedSummary.statistics.approvedStepCount,
 
-    approvedLegalSectionCount:
-      generatedSummary.statistics.approvedLegalSectionCount,
-  },
+        approvedLegalSectionCount:
+          generatedSummary.statistics.approvedLegalSectionCount,
+      },
 
-  auditLog: caseData.auditLog,
-});
+      auditLog: caseData.auditLog,
+    });
 
-caseData.auditLog.push(auditEntry);
+    caseData.auditLog.push(auditEntry);
 
 
     // -----------------------------------------------------
@@ -1045,18 +976,6 @@ caseData.auditLog.push(auditEntry);
 // =========================================================
 //
 // GET /cases/:id/audit/verify
-//
-// Flow:
-//
-// Case ID
-//    ↓
-// Find case
-//    ↓
-// Read audit log
-//    ↓
-// Verify every hash + previousHash link
-//    ↓
-// Return VALID or TAMPERING DETECTED
 //
 
 const verifyCaseAuditChain = async (req, res) => {
@@ -1121,22 +1040,6 @@ const verifyCaseAuditChain = async (req, res) => {
 // =========================================================
 //
 // GET /cases/:id/timeline
-//
-// Converts the audit log into a frontend-friendly timeline.
-//
-// Flow:
-//
-// Case ID
-//    ↓
-// Find case
-//    ↓
-// Read audit log
-//    ↓
-// Convert audit entries into timeline events
-//    ↓
-// Sort by timestamp
-//    ↓
-// Return timeline
 //
 
 const getCaseTimeline = async (req, res) => {
