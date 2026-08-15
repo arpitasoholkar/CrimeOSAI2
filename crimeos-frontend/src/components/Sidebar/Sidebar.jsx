@@ -99,20 +99,49 @@ function SidebarContent({ onNavigate }) {
           </span>
         </button>
 
-        <button type="button" className={styles.profile} onClick={handleProfileClick}>
-          {avatarSrc ? (
-            <img src={avatarSrc} alt={user.name} className={styles.avatarImg} />
-          ) : (
-            <span className={styles.avatar}>{getInitials(user?.name)}</span>
-          )}
-          <span className={styles.profileText}>
-            <span className={styles.profileName}>{user?.name || 'Investigator'}</span>
-            <span className={styles.profileRole}>{user?.organisation || 'Cyber Crime Unit'}</span>
-          </span>
-          <button type="button" className={styles.logoutIconBtn} onClick={handleLogout} aria-label="Log out">
-            <LogOutIcon width={16} height={16} />
-          </button>
-        </button>
+     <div
+  className={styles.profile}
+  role="button"
+  tabIndex={0}
+  onClick={handleProfileClick}
+  onKeyDown={(e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      handleProfileClick()
+    }
+  }}
+>
+  {avatarSrc ? (
+    <img
+      src={avatarSrc}
+      alt={user?.name || 'Profile'}
+      className={styles.avatarImg}
+    />
+  ) : (
+    <span className={styles.avatar}>
+      {getInitials(user?.name)}
+    </span>
+  )}
+
+  <span className={styles.profileText}>
+    <span className={styles.profileName}>
+      {user?.name || 'Investigator'}
+    </span>
+
+    <span className={styles.profileRole}>
+      {user?.organisation || 'Cyber Crime Unit'}
+    </span>
+  </span>
+
+  <button
+    type="button"
+    className={styles.logoutIconBtn}
+    onClick={handleLogout}
+    aria-label="Log out"
+  >
+    <LogOutIcon width={16} height={16} />
+  </button>
+</div>
       </div>
     </>
   )

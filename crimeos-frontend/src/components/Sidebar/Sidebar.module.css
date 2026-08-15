@@ -17,6 +17,8 @@
   }
 }
 
+/* ---------- Brand ---------- */
+
 .brand {
   display: flex;
   align-items: center;
@@ -54,6 +56,8 @@
   letter-spacing: 0.01em;
 }
 
+/* ---------- Navigation ---------- */
+
 .nav {
   display: flex;
   flex-direction: column;
@@ -71,7 +75,9 @@
   color: var(--text-secondary);
   font-size: 14px;
   font-weight: 500;
-  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
 }
 
 .navItem:hover {
@@ -89,6 +95,8 @@
   color: var(--accent);
 }
 
+/* ---------- Footer ---------- */
+
 .footer {
   display: flex;
   flex-direction: column;
@@ -96,6 +104,8 @@
   padding-top: 16px;
   border-top: 1px solid var(--border-soft);
 }
+
+/* ---------- Theme Toggle ---------- */
 
 .themeToggle {
   display: flex;
@@ -146,6 +156,8 @@
 .switchOn .switchKnob {
   transform: translateX(14px);
 }
+
+/* ---------- Profile ---------- */
 
 .profile {
   display: flex;
@@ -210,6 +222,8 @@
   flex-shrink: 0;
 }
 
+/* ---------- Logout ---------- */
+
 .logoutIconBtn {
   width: 28px;
   height: 28px;
@@ -221,7 +235,9 @@
   place-items: center;
   flex-shrink: 0;
   cursor: pointer;
-  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
 }
 
 .logoutIconBtn:hover {
@@ -229,7 +245,7 @@
   background: var(--danger-soft);
 }
 
-/* ---------------- Mobile drawer ---------------- */
+/* ---------- Mobile Drawer ---------- */
 
 .scrim {
   position: fixed;
