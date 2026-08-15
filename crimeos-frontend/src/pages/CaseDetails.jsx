@@ -687,6 +687,16 @@ function LegalRequestCard({ caseId, req, onChanged }) {
       {expanded && (
         <div className={styles.requestBody}>
           {err && <p className={styles.actionError}>{err}</p>}
+
+          {req.previewUrl && (
+            <a href={req.previewUrl} target="_blank" rel="noreferrer" style={{ color: '#5b9df9' }}>
+              View mock email preview
+            </a>
+          )}
+          {req.delivered && !req.previewUrl && (
+            <span style={{ color: '#39d98a', fontWeight: 600 }}>✓ Delivered to inbox</span>
+          )}
+
           <input className={styles.input} placeholder="Officer name / badge ID" value={actor} onChange={(e) => setActor(e.target.value)} />
 
           {req.status === 'draft' && (

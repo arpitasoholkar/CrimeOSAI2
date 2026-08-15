@@ -2,65 +2,107 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-
     <title>Telecom Records Request - {{caseId}}</title>
 </head>
+<body style="margin:0; padding:0; background:#f2f2f2; font-family: Arial, Helvetica, sans-serif; color:#1a1a1a;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f2f2f2; padding:24px 0;">
+<tr><td align="center">
+<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="background:#ffffff; border:1px solid #dcdcdc;">
 
-<body>
+  <!-- Letterhead -->
+  <tr>
+    <td style="background:#0f2a4a; padding:20px 28px;">
+      <p style="margin:0; color:#ffffff; font-size:15px; font-weight:bold; letter-spacing:0.5px;">
+        {{issuingOrganisation}}
+      </p>
+      <p style="margin:2px 0 0; color:#c9d6e5; font-size:12px;">
+        Official Law Enforcement Communication &mdash; Confidential
+      </p>
+    </td>
+  </tr>
 
-    <h1>OFFICIAL TELECOMMUNICATION RECORDS REQUEST</h1>
+  <tr>
+    <td style="padding:28px;">
 
-    <hr>
+      <p style="margin:0 0 4px; font-size:13px; color:#555;">Ref: {{caseId}} / {{requestId}}</p>
+      <p style="margin:0 0 20px; font-size:13px; color:#555;">Date: {{requestDate}}</p>
 
-    <p>
-        <strong>Case Reference:</strong> {{caseId}}
-    </p>
+      <p style="margin:0 0 4px; font-size:13px;">To,</p>
+      <p style="margin:0 0 20px; font-size:13px; font-weight:bold;">
+        The Nodal Officer{{#if provider}}, {{provider}}{{/if}}
+      </p>
 
-    <p>
-        <strong>Date of Request:</strong> {{requestDate}}
-    </p>
+      <h2 style="font-size:16px; margin:0 0 16px; border-bottom:2px solid #0f2a4a; padding-bottom:8px;">
+        Subject: Request for Call Detail Records &ndash; Case {{caseId}}
+      </h2>
 
-    <p>
-        <strong>Case Severity:</strong> {{severity}}
-    </p>
+      <p style="font-size:13.5px; line-height:1.6; margin:0 0 16px;">
+        This is a formal request under lawful investigative authority for call detail
+        records associated with the subscriber number identified below, in connection
+        with an ongoing cybercrime investigation.
+      </p>
 
-    <h2>Subject Phone Number</h2>
+      <table role="presentation" width="100%" cellpadding="6" cellspacing="0" style="border-collapse:collapse; margin:0 0 20px; font-size:13px;">
+        <tr>
+          <td style="width:180px; color:#555; border-bottom:1px solid #eee;">Subject Phone Number</td>
+          <td style="font-weight:bold; border-bottom:1px solid #eee;">{{phoneNumber}}</td>
+        </tr>
+        <tr>
+          <td style="color:#555; border-bottom:1px solid #eee;">Incident Date</td>
+          <td style="border-bottom:1px solid #eee;">{{incidentDate}}</td>
+        </tr>
+        <tr>
+          <td style="color:#555;">Case Classification</td>
+          <td>{{severity}}</td>
+        </tr>
+      </table>
 
-    <p>
-        {{phoneNumber}}
-    </p>
+      {{#if briefContext}}
+      <p style="font-size:13px; line-height:1.6; margin:0 0 20px; color:#333; background:#f7f8fa; border-left:3px solid #0f2a4a; padding:10px 14px;">
+        {{briefContext}}
+      </p>
+      {{/if}}
 
-    <h2>Case Background</h2>
-
-    <p>
-        {{complaint}}
-    </p>
-
-    <h2>Records Requested</h2>
-
-    <p>
-        The investigating authority requests all available
-        call detail records associated with the above phone number.
-    </p>
-
-    <p>
-        Requested records include:
-    </p>
-
-    <ul>
-        <li>Incoming call records</li>
-        <li>Outgoing call records</li>
+      <h3 style="font-size:14px; margin:0 0 10px;">Records Requested</h3>
+      <ul style="font-size:13px; line-height:1.7; margin:0 0 20px; padding-left:20px;">
+        <li>Incoming and outgoing call records</li>
         <li>Call timestamps and duration</li>
-        <li>Subscriber information</li>
-        <li>Available cell tower information</li>
-    </ul>
+        <li>Subscriber registration / KYC information</li>
+        <li>Available cell tower / location information</li>
+      </ul>
 
-    <hr>
+      <p style="font-size:13px; line-height:1.6; margin:0 0 4px;">
+        We would appreciate a response within <strong>{{slaDays}} business days</strong> of receipt of this request.
+      </p>
+      <p style="font-size:13px; line-height:1.6; margin:0 0 24px;">
+        Please direct correspondence to the investigating officer identified below,
+        quoting the case reference number in all communications.
+      </p>
 
-    <p>
-        This request was generated through the Crime OS AI
-        case management system.
-    </p>
+      <hr style="border:none; border-top:1px solid #e0e0e0; margin:0 0 20px;">
 
+      <p style="font-size:13px; line-height:1.5; margin:0;">
+        <strong>{{officerName}}</strong><br>
+        {{#if officerRole}}{{officerRole}}{{#if officerBadge}}, Badge {{officerBadge}}{{/if}}<br>{{/if}}
+        {{issuingOrganisation}}
+      </p>
+
+    </td>
+  </tr>
+
+  <tr>
+    <td style="padding:14px 28px; background:#f7f8fa; border-top:1px solid #eee;">
+      <p style="margin:0; font-size:11px; color:#888;">
+        This is a system-generated communication issued through the Crime OS AI
+        case management platform on behalf of the investigating officer named above.
+        This document and its contents are confidential and intended solely for the
+        named recipient in connection with the referenced investigation.
+      </p>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
 </body>
 </html>

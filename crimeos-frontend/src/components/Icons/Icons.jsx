@@ -253,3 +253,107 @@ export const LinkIcon = (p) => (
     <path d="M13 17.5 11.5 19a3.5 3.5 0 1 1-5-5L8 12.5" />
   </svg>
 )
+
+export const CameraIcon = (p) => (
+  <svg {...base} {...p}>
+    <path d="M4 8a2 2 0 0 1 2-2h1.5l1-2h7l1 2H18a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z" />
+    <circle cx="12" cy="13" r="3.5" />
+  </svg>
+)
+
+export const LogOutIcon = (p) => (
+  <svg {...base} {...p}>
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <path d="M16 17l5-5-5-5" />
+    <path d="M21 12H9" />
+  </svg>
+)
+
+export const MailIcon = (p) => (
+  <svg {...base} {...p}>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="m3 7 9 6 9-6" />
+  </svg>
+)
+
+export const PhoneIcon = (p) => (
+  <svg {...base} {...p}>
+    <path d="M4 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L14 13l5 2v4a2 2 0 0 1-2 2A15 15 0 0 1 4 6a2 2 0 0 1 2-2Z" />
+  </svg>
+)
+
+export const EditIcon = (p) => (
+  <svg {...base} {...p}>
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+  </svg>
+)
+
+export const BadgeIcon = (p) => (
+  <svg {...base} {...p}>
+    <path d="M12 2 4 5v6c0 5 3.4 8.7 8 11 4.6-2.3 8-6 8-11V5l-8-3Z" />
+    <circle cx="12" cy="10" r="2.5" />
+    <path d="M8.5 16c0-1.8 1.6-3 3.5-3s3.5 1.2 3.5 3" />
+  </svg>
+)
+
+export const BuildingIcon = (p) => (
+  <svg {...base} {...p}>
+    <rect x="4" y="3" width="16" height="18" rx="1" />
+    <path d="M9 8h.01M15 8h.01M9 12h.01M15 12h.01M9 16h.01M15 16h.01" />
+  </svg>
+)
+
+export const MapPinSmallIcon = (p) => (
+  <svg {...base} {...p}>
+    <path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11Z" />
+    <circle cx="12" cy="10" r="2.5" />
+  </svg>
+)
+
+export const SaveIcon = (p) => (
+  <svg {...base} {...p}>
+    <path d="M5 4h11l3 3v13H5V4Z" />
+    <path d="M8 4v5h8V4M8 14h8v6H8v-6Z" />
+  </svg>
+)
+
+export const TrashIcon = (p) => (
+  <svg {...base} {...p}>
+    <path d="M4 7h16" />
+    <path d="M9 7V4h6v3" />
+    <path d="M6 7l1 13h10l1-13" />
+  </svg>
+)
+
+export const LockIcon = (p) => (
+  <svg {...base} {...p}>
+    <rect x="5" y="11" width="14" height="9" rx="2" />
+    <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+  </svg>
+)
+
+export const UserIcon = (p) => (
+  <svg {...base} {...p}>
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 20c0-3.9 3.6-7 8-7s8 3.1 8 7" />
+  </svg>
+)
+
+// TRINETRA's brand mark — a wide-set "eye" (Sanskrit trinetra = "third eye").
+export const EyeIcon = (p) => (
+  <svg {...base} {...p}>
+    <path d="M2 12c2.4-4.2 6-6.5 10-6.5S19.6 7.8 22 12c-2.4 4.2-6 6.5-10 6.5S4.4 16.2 2 12Z" />
+    <circle cx="12" cy="12" r="3" />
+    <circle cx="12" cy="12" r="0.6" fill="currentColor" stroke="none" />
+  </svg>
+)
+
+// Small shield-with-lock used as a "secure/authorized" footer marker.
+export const ShieldLockIcon = (p) => (
+  <svg {...base} {...p}>
+    <path d="M12 2 4 5v6c0 5 3.4 8.7 8 11 4.6-2.3 8-6 8-11V5l-8-3Z" />
+    <rect x="9.5" y="10.5" width="5" height="4" rx="1" />
+    <path d="M10.5 10.5V9a1.5 1.5 0 0 1 3 0v1.5" />
+  </svg>
+)

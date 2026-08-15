@@ -219,6 +219,14 @@ const requestSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    // Officer who generated this request (User.username). Distinct from
+    // `approvedBy` (who signed off on sending it) and `response.recordedBy`
+    // (who logged the provider's reply) -- together these three fields
+    // give a full accountability trail for who touched this request when.
+    generatedBy: {
+      type: String,
+      default: null,
+    },
     // NOTE: this is the LEGAL REQUEST status, separate from
     // the overall case `status` field below.
     status: {
@@ -442,6 +450,15 @@ const caseSchema = new mongoose.Schema(
     processedOfflineActionIds: {
       type: [String],
       default: [],
+    },
+
+    // Officer this case is assigned to, stored as the User's `username`.
+    // Powers the "cases solved / ongoing" counters on the Profile page.
+    // Nullable: older/unassigned cases just don't count toward anyone.
+    assignedTo: {
+      type: String,
+      default: null,
+      index: true,
     },
   },
   { timestamps: true }

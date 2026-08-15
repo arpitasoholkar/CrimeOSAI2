@@ -7,6 +7,7 @@ import {
   approveLegalRequest,
   dispatchLegalRequest,
   recordLegalResponse,
+  suggestLegalResponseFields,
   manualReinvestigate,
   getInvestigationVersions,
   generateSummary,
@@ -17,6 +18,7 @@ import {
 import { syncOfflineActions } from "../offline/offlineController.js";
 
 import upload from "../evidence/uploadMiddleware.js";
+import { requireAuth } from "../../lib/auth.js";
 
 import {
   uploadEvidence,
@@ -35,23 +37,34 @@ router.get("/:case_id", getCaseById);
 
 /* ===========================
    LEGAL REQUESTS
+   (require a logged-in officer so every request/approval/response
+   carries a named, accountable user rather than "SYSTEM")
 =========================== */
 
-router.post("/:case_id/request/generate", generateLegalRequest);
+router.post("/:case_id/request/generate", requireAuth, generateLegalRequest);
 
 router.post(
   "/:case_id/request/:requestId/approve",
+  requireAuth,
   approveLegalRequest
 );
 
 router.post(
   "/:case_id/request/:requestId/dispatch",
+  requireAuth,
   dispatchLegalRequest
 );
 
 router.post(
   "/:case_id/request/:requestId/response",
+  requireAuth,
   recordLegalResponse
+);
+
+router.post(
+  "/:case_id/request/:requestId/response/extract",
+  requireAuth,
+  suggestLegalResponseFields
 );
 
 /* ===========================
