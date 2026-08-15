@@ -37,6 +37,18 @@ export function AuthProvider({ children }) {
     return res.data.user
   }, [])
 
+  // idToken is the Google ID token (JWT) handed back by Google Identity
+  // Services on the frontend. The backend verifies it, finds-or-creates
+  // the matching user, and returns the same { token, user } shape login()
+  // does — so everything downstream (storage, state) is identical.
+  const loginWithGoogle = useCallback(async (idToken) => {
+    const res = await apiBackend.post('/api/auth/google', { credential: idToken })
+    localStorage.setItem(TOKEN_KEY, res.data.token)
+    setUser(res.data.user)
+    setStatus('authed')
+    return res.data.user
+  }, [])
+
   const register = useCallback(async (payload) => {
     const res = await apiBackend.post('/api/auth/register', payload)
     localStorage.setItem(TOKEN_KEY, res.data.token)
@@ -56,7 +68,9 @@ export function AuthProvider({ children }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, status, login, register, logout, updateUser, refreshUser: loadSession }}>
+    <AuthContext.Provider
+      value={{ user, status, login, loginWithGoogle, register, logout, updateUser, refreshUser: loadSession }}
+    >
       {children}
     </AuthContext.Provider>
   )

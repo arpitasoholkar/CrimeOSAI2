@@ -339,3 +339,21 @@ export const UserIcon = (p) => (
     <path d="M4 20c0-3.9 3.6-7 8-7s8 3.1 8 7" />
   </svg>
 )
+
+// TRINETRA's brand mark — a wide-set "eye" (Sanskrit trinetra = "third eye").
+export const EyeIcon = (p) => (
+  <svg {...base} {...p}>
+    <path d="M2 12c2.4-4.2 6-6.5 10-6.5S19.6 7.8 22 12c-2.4 4.2-6 6.5-10 6.5S4.4 16.2 2 12Z" />
+    <circle cx="12" cy="12" r="3" />
+    <circle cx="12" cy="12" r="0.6" fill="currentColor" stroke="none" />
+  </svg>
+)
+
+// Small shield-with-lock used as a "secure/authorized" footer marker.
+export const ShieldLockIcon = (p) => (
+  <svg {...base} {...p}>
+    <path d="M12 2 4 5v6c0 5 3.4 8.7 8 11 4.6-2.3 8-6 8-11V5l-8-3Z" />
+    <rect x="9.5" y="10.5" width="5" height="4" rx="1" />
+    <path d="M10.5 10.5V9a1.5 1.5 0 0 1 3 0v1.5" />
+  </svg>
+)

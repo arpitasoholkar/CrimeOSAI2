@@ -1,33 +1,44 @@
 import { useState } from 'react'
-import { useNavigate, useLocation, Link } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { GoogleLogin } from '@react-oauth/google'
 import { useAuth } from '../context/AuthContext'
-import { ShieldIcon, LockIcon, UserIcon } from '../components/Icons/Icons'
+import { EyeIcon, ShieldLockIcon } from '../components/Icons/Icons'
 import styles from './Login.module.css'
 
 export default function Login() {
-  const { login } = useAuth()
+  const { loginWithGoogle } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const [identifier, setIdentifier] = useState('')
-  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   const redirectTo = location.state?.from || '/'
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const handleGoogleSuccess = async (credentialResponse) => {
     setError('')
     setLoading(true)
     try {
-      await login(identifier, password)
+      const idToken = credentialResponse?.credential
+      if (!idToken) {
+        throw new Error('Google did not return a credential. Please try again.')
+      }
+      await loginWithGoogle(idToken)
       navigate(redirectTo, { replace: true })
     } catch (err) {
-      setError(err.response?.data?.error || 'Unable to sign in. Check your credentials.')
+      setError(
+        err.response?.data?.error ||
+          err.message ||
+          'Unable to sign in with Google. Please try again.'
+      )
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleGoogleError = () => {
+    setError('Google sign-in was cancelled or failed. Please try again.')
+    setLoading(false)
   }
 
   return (
@@ -41,64 +52,48 @@ export default function Login() {
         transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
       >
         <div className={styles.brand}>
-          <span className={styles.brandMark}>
-            <ShieldIcon width={24} height={24} />
+          <span className={styles.eyeMark}>
+            <EyeIcon width={30} height={30} />
           </span>
-          <div>
-            <p className={styles.brandName}>
-              CRIME<span>OS</span>
-            </p>
-            <p className={styles.brandSub}>Cyber Investigation OS</p>
-          </div>
+          <p className={styles.brandName}>TRINETRA</p>
+          <p className={styles.brandSub}>Intelligence-Led Investigations</p>
+          <span className={styles.brandDivider} aria-hidden="true" />
         </div>
 
-        <h1 className={styles.title}>Sign in to your workspace</h1>
-        <p className={styles.subtitle}>Access restricted to authorized personnel.</p>
+        <h1 className={styles.title}>Access your investigation workspace</h1>
+        <p className={styles.subtitle}>Authorized personnel only.</p>
 
-        <form className={styles.form} onSubmit={handleSubmit}>
-          <label className={styles.field}>
-            <span className={styles.fieldLabel}>Username or email</span>
-            <div className={styles.inputWrap}>
-              <UserIcon width={16} height={16} className={styles.inputIcon} />
-              <input
-                type="text"
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="investigator.name"
-                autoComplete="username"
-                required
-              />
+        <div className={styles.googleWrap}>
+          {loading ? (
+            <div className={styles.googleLoading} role="status" aria-live="polite">
+              <span className={styles.spinner} aria-hidden="true" />
+              Signing in…
             </div>
-          </label>
+          ) : (
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              theme="filled_white"
+              shape="pill"
+              size="large"
+              text="continue_with"
+              width="320"
+            />
+          )}
+        </div>
 
-          <label className={styles.field}>
-            <span className={styles.fieldLabel}>Password</span>
-            <div className={styles.inputWrap}>
-              <LockIcon width={16} height={16} className={styles.inputIcon} />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                autoComplete="current-password"
-                required
-              />
-            </div>
-          </label>
+        {error && (
+          <p className={styles.error} role="alert">
+            {error}
+          </p>
+        )}
 
-          {error && <p className={styles.error}>{error}</p>}
-
-          <button type="submit" className={styles.submitBtn} disabled={loading}>
-            {loading ? 'Signing in…' : 'Sign In'}
-          </button>
-        </form>
-
-        <p className={styles.footerText}>
-          New to this unit?{' '}
-          <Link to="/register" className={styles.link}>
-            Create an account
-          </Link>
-        </p>
+        <div className={styles.footerDivider} aria-hidden="true">
+          <span />
+          <ShieldLockIcon width={16} height={16} />
+          <span />
+        </div>
+        <p className={styles.footerText}>Secure authentication via Google</p>
       </motion.div>
     </div>
   )

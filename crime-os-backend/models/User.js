@@ -32,9 +32,31 @@ const userSchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
     },
+
+    // "local" = username/password account, "google" = signed in via Google.
+    // Drives whether passwordHash is required and lets the UI/API tell
+    // the two kinds of account apart.
+    provider: {
+      type: String,
+      enum: ["local", "google"],
+      default: "local",
+    },
     passwordHash: {
       type: String,
-      required: true,
+      required: function () {
+        return this.provider !== "google";
+      },
+      default: null,
+    },
+
+    // Google's stable per-account identifier (the ID token's `sub` claim).
+    // Unique + sparse so local accounts (where this is null) don't collide.
+    googleId: {
+      type: String,
+      default: null,
+      unique: true,
+      sparse: true,
+      index: true,
     },
 
     // ---- identity / profile ----
