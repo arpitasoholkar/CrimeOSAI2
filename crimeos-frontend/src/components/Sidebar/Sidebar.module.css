@@ -202,6 +202,33 @@
   font-size: 16px;
 }
 
+.avatarImg {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.logoutIconBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+
+.logoutIconBtn:hover {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
 /* ---------------- Mobile drawer ---------------- */
 
 .scrim {

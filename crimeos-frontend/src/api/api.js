@@ -8,4 +8,14 @@ export const apiBrain = axios.create({
   baseURL: "http://localhost:3001",
 });
 
+// Attach the stored session token (if any) to every backend request.
+// Login/Register set localStorage['crimeos_token']; logout clears it.
+apiBackend.interceptors.request.use((config) => {
+  const token = localStorage.getItem("crimeos_token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 export default apiBackend;

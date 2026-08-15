@@ -1,6 +1,7 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTheme } from '../../context/ThemeContext'
+import { useAuth } from '../../context/AuthContext'
 import {
   ShieldIcon,
   GridIcon,
@@ -12,6 +13,7 @@ import {
   SunIcon,
   MoonIcon,
   XIcon,
+  LogOutIcon,
 } from '../Icons/Icons'
 import styles from './Sidebar.module.css'
 
@@ -24,8 +26,33 @@ const NAV_ITEMS = [
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
 ]
 
+function getInitials(name) {
+  if (!name) return 'IN'
+  const parts = name.trim().split(/\s+/)
+  const initials = parts.length === 1 ? parts[0].slice(0, 2) : parts[0][0] + parts[parts.length - 1][0]
+  return initials.toUpperCase()
+}
+
+const BACKEND_ORIGIN = 'http://localhost:3000'
+
 function SidebarContent({ onNavigate }) {
   const { theme, toggleTheme } = useTheme()
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+
+  const handleProfileClick = () => {
+    onNavigate?.()
+    navigate('/profile')
+  }
+
+  const handleLogout = (e) => {
+    e.stopPropagation()
+    logout()
+    onNavigate?.()
+    navigate('/login', { replace: true })
+  }
+
+  const avatarSrc = user?.avatarUrl ? `${BACKEND_ORIGIN}${user.avatarUrl}` : null
 
   return (
     <>
@@ -72,13 +99,19 @@ function SidebarContent({ onNavigate }) {
           </span>
         </button>
 
-        <button type="button" className={styles.profile}>
-          <span className={styles.avatar}>IN</span>
+        <button type="button" className={styles.profile} onClick={handleProfileClick}>
+          {avatarSrc ? (
+            <img src={avatarSrc} alt={user.name} className={styles.avatarImg} />
+          ) : (
+            <span className={styles.avatar}>{getInitials(user?.name)}</span>
+          )}
           <span className={styles.profileText}>
-            <span className={styles.profileName}>Investigator</span>
-            <span className={styles.profileRole}>Cyber Crime Unit</span>
+            <span className={styles.profileName}>{user?.name || 'Investigator'}</span>
+            <span className={styles.profileRole}>{user?.organisation || 'Cyber Crime Unit'}</span>
           </span>
-          <span className={styles.profileChevron}>›</span>
+          <button type="button" className={styles.logoutIconBtn} onClick={handleLogout} aria-label="Log out">
+            <LogOutIcon width={16} height={16} />
+          </button>
         </button>
       </div>
     </>

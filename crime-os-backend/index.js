@@ -15,6 +15,8 @@ import ingestRouter from "./routes/ingest.js";
 import caseRoutes from "./routes/cases/caseRoutes.js";
 import summaryRoutes from "./routes/summary.js";
 import dashboardRouter from "./routes/dashboard.js";
+import authRoutes from "./routes/auth/authRoutes.js";
+import userRoutes from "./routes/users/userRoutes.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -50,6 +52,8 @@ app.use("/ingest", ingestRouter);
 app.use("/cases", caseRoutes);
 app.use("/cases", summaryRoutes);
 app.use("/api", dashboardRouter);
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
 
 app.get("/health", (req, res) => {
   res.json({

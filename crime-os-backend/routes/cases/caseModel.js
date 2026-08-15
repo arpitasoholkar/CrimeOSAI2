@@ -443,6 +443,15 @@ const caseSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+
+    // Officer this case is assigned to, stored as the User's `username`.
+    // Powers the "cases solved / ongoing" counters on the Profile page.
+    // Nullable: older/unassigned cases just don't count toward anyone.
+    assignedTo: {
+      type: String,
+      default: null,
+      index: true,
+    },
   },
   { timestamps: true }
 );
