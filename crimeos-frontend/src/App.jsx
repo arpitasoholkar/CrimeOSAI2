@@ -42,6 +42,7 @@ import { Routes, Route, useNavigate } from 'react-router-dom'
 import Sidebar from './components/Sidebar/Sidebar'
 import TopNav from './components/TopNav/TopNav'
 import Dashboard from './pages/Dashboard'
+import Cases from './pages/Cases'
 import NewCase from './pages/NewCase'
 import CaseDetails from './pages/CaseDetails'
 import AIInvestigation from './pages/AIInvestigation'
@@ -68,7 +69,7 @@ export default function App() {
         <div className={styles.content}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/cases" element={<PlaceholderPage title="Cases" description="Full case list, filters and bulk actions land here." />} />
+            <Route path="/cases" element={<Cases />} />
             <Route path="/cases/:caseId" element={<CaseDetails />} />
             <Route path="/cases/:caseId/investigation" element={<AIInvestigation />} />
             <Route path="/new-case" element={<NewCase />} />

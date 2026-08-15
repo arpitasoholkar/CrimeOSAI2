@@ -157,7 +157,7 @@ app.post("/api/investigate", async (req, res) => {
     const resolvedTrigger =
       trigger || (caseDoc.investigationVersions?.length ? "manual_reinvestigation" : "initial_complaint");
 
-    const newVersion = assembleInvestigationVersion(caseDoc, suggestion, resolvedTrigger);
+    const newVersion = await assembleInvestigationVersion(caseDoc, suggestion, resolvedTrigger);
 
     caseDoc.investigationVersions = caseDoc.investigationVersions || [];
     caseDoc.investigationVersions.push(newVersion);

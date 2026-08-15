@@ -124,18 +124,49 @@ router.get("/stats", async (req, res) => {
 
 // =========================================================
 // GET /api/cases?limit=4
+// GET /api/cases?page=1&limit=20&status=pending&q=CASE-2026
 // =========================================================
+//
+// Backward compatible: a bare `?limit=4` call (used by the Dashboard's
+// "Recent Investigations" panel) still just returns a plain array, capped
+// at 100, most-recently-updated first.
+//
+// When `page` is supplied (used by the full Cases page) the route instead
+// paginates and returns `{ cases, total, page, pageCount }` so the frontend
+// can render "showing X of Y" / page controls instead of silently truncating
+// the list at 100 records.
+//
+// `status` filters by the same dashboard bucket used for the stat cards
+// (pending | underInvestigation | resolved), and `q` does a case-insensitive
+// match against case_id and title.
+
+const STATUS_BUCKET_VALUES = {
+  pending: PENDING_STATUSES,
+  underInvestigation: INVESTIGATION_STATUSES,
+  resolved: RESOLVED_STATUSES,
+};
+
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 router.get("/cases", async (req, res) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
+    const { status, q } = req.query;
+    const isPaginated = req.query.page !== undefined;
 
-    const cases = await Case.find({})
-      .sort({ updatedAt: -1 })
-      .limit(limit)
-      .lean();
+    const filter = {};
 
-    const shaped = cases.map((c) => {
+    if (status && STATUS_BUCKET_VALUES[status]) {
+      filter.status = { $in: STATUS_BUCKET_VALUES[status] };
+    }
+
+    if (q && q.trim()) {
+      const re = new RegExp(escapeRegExp(q.trim()), "i");
+      filter.$or = [{ case_id: re }, { title: re }];
+    }
+
+    const shape = (c) => {
       const chips = evidenceChips(c);
       return {
         id: c.case_id,
@@ -146,9 +177,39 @@ router.get("/cases", async (req, res) => {
         risk: riskLabel(c.severity),
         updated: timeAgo(c.updatedAt),
       };
-    });
+    };
 
-    res.json(shaped);
+    if (!isPaginated) {
+      // Legacy behaviour for the Dashboard widget.
+      const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
+
+      const cases = await Case.find(filter)
+        .sort({ updatedAt: -1 })
+        .limit(limit)
+        .lean();
+
+      return res.json(cases.map(shape));
+    }
+
+    // Full, paginated Cases page.
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+
+    const [total, cases] = await Promise.all([
+      Case.countDocuments(filter),
+      Case.find(filter)
+        .sort({ updatedAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
+    ]);
+
+    res.json({
+      cases: cases.map(shape),
+      total,
+      page,
+      pageCount: Math.max(Math.ceil(total / limit), 1),
+    });
   } catch (err) {
     console.error("[dashboard] Failed to load cases:", err);
     res.status(500).json({ error: "Failed to load cases" });

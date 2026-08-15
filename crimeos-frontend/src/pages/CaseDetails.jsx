@@ -9,6 +9,7 @@ import {
   CheckIcon, XCircleIcon, LinkIcon, UploadCloudIcon,
 } from '../components/Icons/Icons'
 import EntityGraph from '../components/CaseIntelligence/EntityGraph'
+import LocationMap from '../components/CaseIntelligence/LocationMap'
 import styles from './CaseDetails.module.css'
 
 const EVIDENCE_ICON = { pdf: FileTextIcon, image: ImageIcon, audio: AudioIcon, text: FileTextIcon }
@@ -523,17 +524,36 @@ function NextBestActionPanel({ caseId, latest, onChanged }) {
 
 function GeoIntelligencePanel({ latest }) {
   const located = (latest?.entities || []).filter((e) => e.lat != null && e.lng != null)
+
+  const markers = located.map((e, i) => ({
+    id: `${e.type}-${i}`,
+    label: e.type.replace(/_/g, ' '),
+    lat: e.lat,
+    lng: e.lng,
+    type: e.type,
+    detail: e.geocodedDisplayName || e.value,
+  }))
+
   return (
     <section className={styles.section}>
       <h3 className={styles.sectionTitle}><MapPinIcon width={15} height={15} /> Geographic Intelligence</h3>
       {located.length ? (
-        <ul className={styles.gapsList}>
-          {located.map((e, i) => (
-            <li key={i}>{e.type.replace(/_/g, ' ')}: {e.value} ({e.lat}, {e.lng})</li>
-          ))}
-        </ul>
+        <div className={styles.geoLayout}>
+          <LocationMap markers={markers} />
+          <ul className={styles.geoList}>
+            {located.map((e, i) => (
+              <li key={i} className={styles.geoItem}>
+                <span className={styles.geoDot} />
+                <div>
+                  <p className={styles.geoLabel}>{e.type.replace(/_/g, ' ')} <span className={styles.metaText}>· {e.value}</span></p>
+                  <p className={styles.metaText}>{e.geocodedDisplayName || `${e.lat.toFixed(4)}, ${e.lng.toFixed(4)}`}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : (
-        <p className={styles.empty}>No geographic intelligence available for this case yet.</p>
+        <p className={styles.empty}>No geographic intelligence available for this case yet. Addresses mentioned in the complaint, or recorded from bank/telecom legal responses (KYC address, tower location), are geocoded automatically once the AI (re-)investigates the case.</p>
       )}
     </section>
   )

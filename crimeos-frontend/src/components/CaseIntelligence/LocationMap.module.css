@@ -1,0 +1,74 @@
+.mapShell {
+  position: relative;
+  width: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+}
+
+.mapEl {
+  width: 100%;
+  height: 360px;
+  background: var(--bg);
+}
+
+.mapLoading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+  background: var(--bg);
+  z-index: 350;
+}
+
+.attribution {
+  position: absolute;
+  bottom: 6px;
+  right: 8px;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  background: var(--card);
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  z-index: 400;
+  pointer-events: none;
+}
+
+.pinCount {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--card);
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  z-index: 400;
+  pointer-events: none;
+}
+
+.error {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+  padding: 20px;
+  text-align: center;
+}
+
+/* Custom Leaflet divIcon pin -- a simple colored dot with a soft ring,
+   styled to match the app's design tokens instead of Leaflet's default
+   blue marker image. */
+.pin span {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--card, #171c28);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25);
+}
