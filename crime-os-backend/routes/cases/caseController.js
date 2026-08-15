@@ -18,6 +18,10 @@ import {
 } from "../requests/nextStepsService.js";
 
 import {
+  extractResponseFields,
+} from "../requests/responseExtractService.js";
+
+import {
   generateCaseSummary,
 } from "../summary/summaryService.js";
 
@@ -825,6 +829,84 @@ const recordLegalResponse = async (req, res) => {
 };
 
 // =========================================================
+// SUGGEST LEGAL RESPONSE FIELDS (LLM-assisted, read-only)
+// =========================================================
+//
+// POST /cases/:case_id/request/:requestId/response/extract
+//
+// Takes the raw text of a provider's reply and returns suggested
+// values for the recordLegalResponse fields. Does NOT save anything
+// to the case -- the officer reviews/edits the suggestions client-side
+// and then calls the existing recordLegalResponse endpoint to actually
+// commit them. Keeps a human in the loop before anything becomes
+// case evidence.
+//
+
+const suggestLegalResponseFields = async (req, res) => {
+  try {
+    const { case_id, requestId } = req.params;
+    const { replyText } = req.body;
+
+    if (!replyText || !replyText.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "replyText is required",
+      });
+    }
+
+    const caseData = await Case.findOne({ case_id });
+
+    if (!caseData) {
+      return res.status(404).json({
+        success: false,
+        message: "Case not found",
+      });
+    }
+
+    const requestData = caseData.requests.find(
+      (request) => request.requestId === requestId
+    );
+
+    if (!requestData) {
+      return res.status(404).json({
+        success: false,
+        message: "Legal request not found",
+      });
+    }
+
+    if (!["sent", "overdue"].includes(requestData.status)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Response fields can only be suggested for a sent (or overdue) request",
+      });
+    }
+
+    const suggestion = await extractResponseFields(
+      replyText,
+      requestData.requestType
+    );
+
+    return res.status(200).json({
+      success: true,
+      message:
+        suggestion.source === "llm"
+          ? "Suggested fields extracted from reply"
+          : "Could not run extraction -- review and enter fields manually",
+      ...suggestion,
+    });
+  } catch (error) {
+    console.error("Suggest legal response fields error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to extract suggested fields",
+      error: error.message,
+    });
+  }
+};
+
+// =========================================================
 // MANUAL RE-INVESTIGATION
 // =========================================================
 //
@@ -1177,6 +1259,7 @@ export {
   approveLegalRequest,
   dispatchLegalRequest,
   recordLegalResponse,
+  suggestLegalResponseFields,
   manualReinvestigate,
   getInvestigationVersions,
   generateSummary,

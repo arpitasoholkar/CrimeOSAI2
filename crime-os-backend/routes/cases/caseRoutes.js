@@ -7,6 +7,7 @@ import {
   approveLegalRequest,
   dispatchLegalRequest,
   recordLegalResponse,
+  suggestLegalResponseFields,
   manualReinvestigate,
   getInvestigationVersions,
   generateSummary,
@@ -58,6 +59,12 @@ router.post(
   "/:case_id/request/:requestId/response",
   requireAuth,
   recordLegalResponse
+);
+
+router.post(
+  "/:case_id/request/:requestId/response/extract",
+  requireAuth,
+  suggestLegalResponseFields
 );
 
 /* ===========================
