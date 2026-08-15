@@ -1,4 +1,5 @@
 import Case from "./caseModel.js";
+import User from "../../models/User.js";
 import {
   createHashedAuditEntry,
   verifyAuditChain,
@@ -11,6 +12,10 @@ import {
 import {
   sendLegalRequestEmail,
 } from "../requests/emailService.js";
+
+import {
+  getSuggestedNextSteps,
+} from "../requests/nextStepsService.js";
 
 import {
   generateCaseSummary,
@@ -221,19 +226,40 @@ const generateLegalRequest = async (req, res) => {
     }
 
     // -----------------------------------------------------
-    // GENERATE HTML SNAPSHOT
-    // -----------------------------------------------------
-
-    const filledHtml = fillTemplate(
-      caseData.toObject(),
-      requestType
-    );
-
-    // -----------------------------------------------------
     // GENERATE REQUEST ID
     // -----------------------------------------------------
 
     const requestId = `REQ-${Date.now()}`;
+
+    // -----------------------------------------------------
+    // IDENTIFY THE REQUESTING OFFICER
+    // -----------------------------------------------------
+    //
+    // Prefer the logged-in user (req.user, set by requireAuth on this
+    // route). Falls back to whoever the case is assigned to if the
+    // request somehow arrives without a session. This is what lets the
+    // letter carry a named, accountable officer instead of "SYSTEM".
+    //
+    let officer = null;
+    const officerUsername = req.user?.username || caseData.assignedTo;
+    if (officerUsername) {
+      officer = await User.findOne({ username: officerUsername }).lean();
+    }
+
+    // -----------------------------------------------------
+    // GENERATE HTML SNAPSHOT
+    // -----------------------------------------------------
+    //
+    // Scoped to only the identifier this specific request concerns --
+    // see templateService.js. We do NOT hand the provider the full
+    // raw complaint text or unrelated case entities.
+    //
+
+    const filledHtml = fillTemplate(
+      caseData.toObject(),
+      requestType,
+      { requestId, provider, officer }
+    );
 
     // -----------------------------------------------------
     // CREATE REQUEST
@@ -249,6 +275,8 @@ const generateLegalRequest = async (req, res) => {
       status: "draft",
 
       htmlSnapshot: filledHtml,
+
+      generatedBy: officer?.username || null,
 
       createdAt: new Date(),
     };
@@ -297,6 +325,8 @@ const generateLegalRequest = async (req, res) => {
         "Legal request generated successfully",
 
       request: savedRequest,
+
+      suggestedNextSteps: getSuggestedNextSteps(savedRequest),
     });
   } catch (error) {
     console.error(
@@ -332,7 +362,8 @@ const approveLegalRequest = async (req, res) => {
     // GET REQUEST DATA
     // -----------------------------------------------------
 
-    const { approvedBy } = req.body;
+    const { approvedBy: approvedByBody } = req.body;
+    const approvedBy = approvedByBody || req.user?.username;
 
     const { case_id, requestId } = req.params;
 
@@ -441,6 +472,8 @@ const approveLegalRequest = async (req, res) => {
         "Legal request approved successfully",
 
       request: requestData,
+
+      suggestedNextSteps: getSuggestedNextSteps(requestData),
     });
   } catch (error) {
     console.error(
@@ -638,6 +671,8 @@ const dispatchLegalRequest = async (req, res) => {
 
       request: requestData,
 
+      suggestedNextSteps: getSuggestedNextSteps(requestData),
+
       previewUrl:
         dispatchResult.previewUrl,
     });
@@ -665,7 +700,8 @@ const dispatchLegalRequest = async (req, res) => {
 const recordLegalResponse = async (req, res) => {
   try {
     const { case_id, requestId } = req.params;
-    const { recordedBy, notes, data = {} } = req.body;
+    const { recordedBy: recordedByBody, notes, data = {} } = req.body;
+    const recordedBy = recordedByBody || req.user?.username;
 
     if (!recordedBy) {
       return res.status(400).json({
@@ -773,6 +809,8 @@ const recordLegalResponse = async (req, res) => {
       success: true,
       message: "Legal response recorded successfully",
       request: requestData,
+
+      suggestedNextSteps: getSuggestedNextSteps(requestData),
       addedEntities,
     });
   } catch (error) {

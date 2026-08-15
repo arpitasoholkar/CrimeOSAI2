@@ -31,43 +31,74 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // "9876543210"
 //
 const findEntity = (caseData, entityType) => {
-    // Safety check in case entities does not exist.
     if (!caseData.entities) {
         return null;
     }
 
-    // Find the first entity whose type matches.
     const entity = caseData.entities.find(
         (item) =>
             item.type &&
             item.type.toUpperCase() === entityType.toUpperCase()
     );
 
-    // Return its value if found.
     return entity ? entity.value : null;
+};
+
+// Same as findEntity, but tries a list of type names in order and
+// returns the first one that has a value. Useful because upstream
+// extraction/ingest paths don't always agree on a single type label
+// for the same kind of fact (e.g. "UPI_ID" vs "UPI").
+const findEntityAny = (caseData, entityTypes) => {
+    for (const type of entityTypes) {
+        const value = findEntity(caseData, type);
+        if (value) return value;
+    }
+    return null;
 };
 
 
 // ---------------------------------------------------------
-// HELPER: GET RAW COMPLAINT TEXT
+// HELPER: ONE-LINE FACTUAL CONTEXT (request-type scoped)
 // ---------------------------------------------------------
 //
-// FIX: the live Case schema has no `complaint.raw` field -- complaint
-// text actually lives in `evidence[].raw_text` (see caseModel.js). This
-// always fell through to "Complaint information unavailable" before.
-// Kept the `complaint.raw`/`complaint.text` check too, in case that
-// shape shows up from another intake path later.
+// IMPORTANT: this deliberately does NOT reproduce the full raw
+// complaint. An external provider (telecom operator, bank) only
+// needs enough context to understand *why* the specific number
+// or account it holds is being asked about -- not the complainant's
+// entire narrative, unrelated suspects, other UPI IDs, or amounts
+// that have nothing to do with the identifier this particular
+// request concerns.
 //
-const getComplaintText = (caseData) => {
-    if (caseData.complaint?.raw) return caseData.complaint.raw;
-    if (caseData.complaint?.text) return caseData.complaint.text;
-    if (caseData.evidence?.length) {
-        return caseData.evidence
-            .map((e) => e.raw_text)
-            .filter(Boolean)
-            .join("\n\n") || "Complaint information unavailable";
+// If none of the fields we need are available, we return null and
+// the template simply omits the context block rather than falling
+// back to a wall of raw text.
+//
+const buildBriefContext = (caseData, requestType, scopedValue) => {
+    const incidentDate = findEntityAny(caseData, ["INCIDENT_DATE", "DATE"]);
+
+    if (requestType === "telecom") {
+        if (!scopedValue) return null;
+        return (
+            `The number ${scopedValue} is stated to have been used to contact ` +
+            `the complainant in relation to this cybercrime complaint` +
+            (incidentDate ? ` on or around ${incidentDate}` : "") +
+            `. Records are sought solely to identify the subscriber and usage ` +
+            `pattern associated with this number.`
+        );
     }
-    return "Complaint information unavailable";
+
+    if (requestType === "bank") {
+        if (!scopedValue) return null;
+        return (
+            `The account/UPI identifier ${scopedValue} is stated to have received ` +
+            `funds connected to this cybercrime complaint` +
+            (incidentDate ? ` on or around ${incidentDate}` : "") +
+            `. Records are sought solely to identify the account holder and ` +
+            `trace the flow of funds through this identifier.`
+        );
+    }
+
+    return null;
 };
 
 
@@ -80,18 +111,14 @@ const getComplaintText = (caseData) => {
 // "telecom"
 // "bank"
 //
-// The function:
+// `context.requestId` and `context.officer` are optional but should
+// be passed by the caller when available -- they scope the letter to
+// a specific request and put a named, accountable officer on it
+// instead of an anonymous "SYSTEM" sender.
 //
-// 1. Chooses the correct .hbs file
-// 2. Reads the template
-// 3. Extracts useful case information
-// 4. Replaces Handlebars placeholders
-// 5. Returns completed HTML
-//
-const fillTemplate = (caseData, requestType) => {
+const fillTemplate = (caseData, requestType, context = {}) => {
     let templateFileName;
 
-    // Decide which legal request template we need.
     if (requestType === "telecom") {
         templateFileName = "telecomRequest.hbs";
     } else if (requestType === "bank") {
@@ -100,80 +127,86 @@ const fillTemplate = (caseData, requestType) => {
         throw new Error(`Unsupported request type: ${requestType}`);
     }
 
-
-    // Build the complete path to the template.
-    //
-    // __dirname currently means:
-    // backend/src/requests
-    //
-    // So we go into:
-    // templates/<filename>
-    //
     const templatePath = path.join(
         __dirname,
         "templates",
         templateFileName
     );
 
-
-    // Read the .hbs file as normal text.
-    const templateSource = fs.readFileSync(
-        templatePath,
-        "utf8"
-    );
-
-
-    // Compile the Handlebars template.
-    //
-    // After compiling, template() becomes a function.
+    const templateSource = fs.readFileSync(templatePath, "utf8");
     const template = Handlebars.compile(templateSource);
 
+    const officer = context.officer || {};
 
-    // Extract entities Person A may have detected.
-    const phoneNumber =
-        findEntity(caseData, "PHONE") ||
-        "Phone number not identified";
+    const slaDays = requestType === "telecom" ? 3 : 5;
 
-    const amount =
-        findEntity(caseData, "AMOUNT") ||
-        findEntity(caseData, "TRANSACTION_AMOUNT") ||
-        "Amount not identified";
+    let templateData;
 
+    if (requestType === "telecom") {
+        const phoneNumber =
+            context.phoneNumber ||
+            findEntity(caseData, "PHONE") ||
+            "Not identified";
 
-    // Create the data object used by Handlebars.
-    //
-    // The keys here match placeholders in our .hbs files.
-    //
-    // Example:
-    //
-    // caseId -> {{caseId}}
-    // amount -> {{amount}}
-    //
-    const templateData = {
-        caseId: caseData.case_id,
+        templateData = {
+            caseId: caseData.case_id,
+            requestId: context.requestId || null,
+            requestDate: new Date().toLocaleDateString("en-IN"),
+            severity: caseData.severity || "Not classified",
+            provider: context.provider || null,
+            phoneNumber,
+            incidentDate:
+                findEntityAny(caseData, ["INCIDENT_DATE", "DATE"]) ||
+                "Not specified",
+            briefContext: buildBriefContext(caseData, "telecom", phoneNumber),
+            slaDays,
+            officerName: officer.name || "Investigating Officer",
+            officerRole: officer.role || null,
+            officerBadge: officer.badgeNumber || null,
+            issuingOrganisation:
+                officer.organisation || "Cyber Crime Investigation Unit",
+        };
+    } else {
+        const accountIdentifier =
+            context.accountIdentifier ||
+            findEntityAny(caseData, ["UPI_ID", "UPI", "BANK_ACCOUNT", "ACCOUNT_NUMBER"]) ||
+            "Not identified";
 
-        requestDate: new Date().toLocaleDateString("en-IN"),
+        const amount =
+            context.amount ||
+            findEntityAny(caseData, ["AMOUNT", "TRANSACTION_AMOUNT"]) ||
+            "Not specified";
 
-        severity: caseData.severity || "Not classified",
+        templateData = {
+            caseId: caseData.case_id,
+            requestId: context.requestId || null,
+            requestDate: new Date().toLocaleDateString("en-IN"),
+            severity: caseData.severity || "Not classified",
+            provider: context.provider || null,
+            accountIdentifier,
+            amount,
+            transactionRef:
+                findEntityAny(caseData, ["TRANSACTION_REF", "TXN_REF", "REFERENCE"]) ||
+                "Not specified",
+            incidentDate:
+                findEntityAny(caseData, ["INCIDENT_DATE", "DATE"]) ||
+                "Not specified",
+            briefContext: buildBriefContext(caseData, "bank", accountIdentifier),
+            slaDays,
+            officerName: officer.name || "Investigating Officer",
+            officerRole: officer.role || null,
+            officerBadge: officer.badgeNumber || null,
+            issuingOrganisation:
+                officer.organisation || "Cyber Crime Investigation Unit",
+        };
+    }
 
-        complaint: getComplaintText(caseData),
-
-        phoneNumber,
-
-        amount,
-    };
-
-
-    // Replace all {{placeholders}} with real values.
-    const filledHtml = template(templateData);
-
-
-    // Return the final HTML request.
-    return filledHtml;
+    return template(templateData);
 };
 
 
-// Export the function so controllers can use it later.
 export {
     fillTemplate,
+    findEntity,
+    findEntityAny,
 };
