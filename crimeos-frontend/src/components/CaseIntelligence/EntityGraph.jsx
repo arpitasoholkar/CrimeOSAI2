@@ -219,10 +219,11 @@ export default function EntityGraph({ entities = [], relationships = [] }) {
         return
       }
       if (panRef.current) {
-        const dx = e.clientX - panRef.current.startX
-        const dy = e.clientY - panRef.current.startY
-        setTransform((t) => ({ ...t, x: panRef.current.startTx + dx, y: panRef.current.startTy + dy }))
-      }
+  const { startX, startY, startTx, startTy } = panRef.current
+  const dx = e.clientX - startX
+  const dy = e.clientY - startY
+  setTransform((t) => ({ ...t, x: startTx + dx, y: startTy + dy }))
+}
     }
 
     const handleUp = () => {
