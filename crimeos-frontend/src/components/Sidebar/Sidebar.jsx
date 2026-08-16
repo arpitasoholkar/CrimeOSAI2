@@ -16,6 +16,7 @@ import {
   LogOutIcon,
   BadgeIcon,
   LockIcon,
+  ArchiveIcon,
 } from '../Icons/Icons'
 import styles from './Sidebar.module.css'
 
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { to: '/my-cases', label: 'My Cases', icon: BadgeIcon },
   { to: '/new-case', label: 'New Case', icon: PlusCircleIcon },
   { to: '/access-requests', label: 'Access Requests', icon: LockIcon, badgeKey: 'accessRequests' },
+  { to: '/cases-archive', label: 'Cases Archive', icon: ArchiveIcon },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
 ]
 

@@ -103,6 +103,10 @@ app.post("/api/suggest", async (req, res) => {
     res.json(suggestion);
   } catch (err) {
     console.error(err);
+    const friendly = friendlyAiErrorMessage(err);
+    if (friendly.error) {
+      return res.status(friendly.status).json({ error: friendly.error });
+    }
     res.status(500).json({ error: "Failed to generate suggestion", detail: err.message });
   }
 });
@@ -155,6 +159,37 @@ function extractComplaintText(caseDoc) {
   return "";
 }
 
+// The Gemini SDK throws errors whose `.message` is the raw HTTP body from
+// Google (often several hundred characters of JSON-in-a-string, rate-limit
+// docs links, quota metric names, etc). That's fine in server logs, but it's
+// not something an investigating officer should see on screen. This turns
+// the handful of error shapes we actually hit in practice into one short,
+// actionable sentence -- everything else still logs the full detail server-
+// side via console.error, just not in the HTTP response.
+function friendlyAiErrorMessage(err) {
+  const raw = err?.message || "";
+
+  if (err?.status === 429 || /\[429\b/.test(raw) || /Too Many Requests/i.test(raw)) {
+    const retryMatch = raw.match(/"retryDelay"\s*:\s*"(\d+)s"/);
+    const retrySeconds = retryMatch ? Number(retryMatch[1]) : null;
+    return {
+      status: 429,
+      error: retrySeconds
+        ? `The AI service has hit its request limit. Please try again in about ${retrySeconds} seconds.`
+        : "The AI service has hit its request limit for now. Please wait a bit and try again.",
+    };
+  }
+
+  if (err?.status === 401 || err?.status === 403 || /API key/i.test(raw)) {
+    return {
+      status: err?.status || 500,
+      error: "The AI service isn't configured correctly (invalid or missing API key). Contact an admin.",
+    };
+  }
+
+  return { status: err?.status || 500, error: null };
+}
+
 // ---------- Real integration route (shared MongoDB with her backend) ----------
 
 app.post("/api/investigate", async (req, res) => {
@@ -171,8 +206,12 @@ app.post("/api/investigate", async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error(err);
+    const friendly = friendlyAiErrorMessage(err);
+    if (friendly.error) {
+      return res.status(friendly.status).json({ error: friendly.error });
+    }
     if (err.status) {
-      return res.status(err.status).json({ error: err.message });
+      return res.status(err.status).json({ error: "Investigation failed. Please try again." });
     }
     res.status(500).json({ error: "Investigation failed", detail: err.message });
   }

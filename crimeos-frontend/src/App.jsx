@@ -8,6 +8,7 @@ import Cases from './pages/Cases'
 import NewCase from './pages/NewCase'
 import CaseDetails from './pages/CaseDetails'
 import MyCases from './pages/MyCases'
+import CasesArchive from './pages/CasesArchive'
 import AccessRequests from './pages/AccessRequests'
 import AIInvestigation from './pages/AIInvestigation'
 import Settings from './pages/Settings'
@@ -40,6 +41,7 @@ function AppShell() {
             <Route path="/cases/:caseId/investigation" element={<AIInvestigation />} />
             <Route path="/new-case" element={<NewCase />} />
             <Route path="/my-cases" element={<MyCases />} />
+            <Route path="/cases-archive" element={<CasesArchive />} />
             <Route path="/access-requests" element={<AccessRequests />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/profile" element={<Profile />} />

@@ -338,6 +338,70 @@ const requestSchema = new mongoose.Schema(
 );
 
 // =========================================================
+// CASE RESOLUTION SCHEMA (new -- "Case Completed" record)
+// =========================================================
+//
+// Filled in once, when an investigator marks the case complete.
+// Captures the closure story that the raw status enum can't: how the
+// case concluded, what evidence drove that conclusion, and what
+// happened to the victim -- so anyone browsing the Cases Archive later
+// (including investigators who never worked the case) gets the full
+// picture without having to reconstruct it from the audit log.
+//
+
+const resolutionSchema = new mongoose.Schema(
+  {
+    outcome: {
+      type: String,
+      enum: [
+        "culprit_identified",
+        "culprit_arrested",
+        "money_recovered",
+        "false_complaint",
+        "withdrawn_by_complainant",
+        "unable_to_resolve",
+        "other",
+      ],
+      required: true,
+    },
+    // Free-text "how did it conclude" narrative.
+    summary: {
+      type: String,
+      required: true,
+    },
+    // "What are the evidences" -- key evidence that drove the outcome.
+    keyEvidence: {
+      type: String,
+      default: "",
+    },
+    // "What happened to the victim" -- compensation, recovery amount,
+    // welfare follow-up, etc.
+    victimOutcome: {
+      type: String,
+      default: "",
+    },
+    // Any recovered amount, if applicable (money-mule / fraud cases).
+    amountRecovered: {
+      type: Number,
+      default: null,
+    },
+    actionsTaken: {
+      type: String,
+      default: "",
+    },
+    closedBy: {
+      type: String,
+      required: true,
+    },
+    closedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: false }
+);
+
+// =========================================================
 // AUDIT LOG SCHEMA (from crimeos-summary)
 // =========================================================
 //
@@ -433,6 +497,21 @@ const caseSchema = new mongoose.Schema(
       type: String,
       enum: ["low", "medium", "high", "critical"],
       default: "medium",
+    },
+
+    // ---- case completion / archive ----
+    // Set once, when any investigator on the case marks it complete.
+    // A completed case is read-only and shows up in the Cases Archive
+    // for EVERY authenticated investigator, not just the ones who
+    // worked it -- see getCaseById / getArchivedCases in the controller.
+    isCompleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    resolution: {
+      type: resolutionSchema,
+      default: null,
     },
 
     // ---- crime-os-backend / crimeos-brain fields ----
