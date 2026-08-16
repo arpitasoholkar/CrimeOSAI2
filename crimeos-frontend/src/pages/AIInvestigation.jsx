@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { useParams, useNavigate } from 'react-router-dom'
 import { apiBrain } from '../api/api'
 import { SparklesIcon, CheckCircleIcon } from '../components/Icons/Icons'
+import EyeLoader from '../components/EyeLoader/EyeLoader'
 import styles from './AIInvestigation.module.css'
 
 export default function AIInvestigation() {
@@ -11,6 +12,7 @@ export default function AIInvestigation() {
 
   const [caseDoc, setCaseDoc] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [loadingStartedAt] = useState(() => Date.now())
   const [running, setRunning] = useState(false)
   const [error, setError] = useState(null)
 
@@ -33,7 +35,11 @@ export default function AIInvestigation() {
         if (analysis?.legalSections) setSelectedLegal(new Set(analysis.legalSections.map((s) => s.id)))
       })
       .catch((err) => setError(err.response?.data?.error || 'Failed to load this case.'))
-      .finally(() => setLoading(false))
+      .finally(() => {
+        const elapsed = Date.now() - loadingStartedAt
+        const remaining = Math.max(0, 1200 - elapsed)
+        window.setTimeout(() => setLoading(false), remaining)
+      })
   }
 
   useEffect(() => {
@@ -82,7 +88,7 @@ export default function AIInvestigation() {
     }
   }
 
-  if (loading) return <p className={styles.state}>Loading investigation…</p>
+  if (loading) return <EyeLoader label="Loading investigation…" />
   if (!caseDoc) return <p className={styles.stateError}>{error || 'Case not found.'}</p>
 
   const analysis = caseDoc.analysis
@@ -114,11 +120,17 @@ export default function AIInvestigation() {
 
       {!hasAnalysis ? (
         <div className={styles.emptyState}>
-          <SparklesIcon width={22} height={22} />
-          <p>No AI analysis yet for this case.</p>
-          <button type="button" className={styles.runBtn} onClick={runInvestigation} disabled={running}>
-            {running ? 'Running…' : 'Run AI Investigation'}
-          </button>
+          {running ? (
+            <EyeLoader label="Running AI investigation…" />
+          ) : (
+            <>
+              <SparklesIcon width={22} height={22} />
+              <p>No AI analysis yet for this case.</p>
+              <button type="button" className={styles.runBtn} onClick={runInvestigation} disabled={running}>
+                Run AI Investigation
+              </button>
+            </>
+          )}
         </div>
       ) : (
         <>
