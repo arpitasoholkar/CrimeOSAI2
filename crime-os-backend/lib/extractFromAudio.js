@@ -12,7 +12,7 @@
  */
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_MODEL = "gemini-3.6-flash";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const PLACEHOLDER_VALUES = ["YOUR_GEMINI_API_KEY_HERE", "", undefined];
@@ -25,7 +25,7 @@ const MIME_BY_EXTENSION = {
   ".ogg": "audio/ogg",
   ".webm": "audio/webm",
   ".flac": "audio/flac",
-  ".mpeg": "audio/mpeg",
+  ".mpeg": "audio/mp3",
   ".mpga": "audio/mpeg",
   ".mp2": "audio/mpeg",
 };
@@ -76,10 +76,20 @@ async function transcribeAudio(buffer, mimeType) {
     });
 
     if (!response.ok) {
-      const errBody = await response.text();
-      console.error("[extractFromAudio] Gemini API returned an error:", response.status, errBody);
-      return { text: "", source: "fallback_api_error" };
-    }
+  const errBody = await response.text();
+
+  console.error("========== GEMINI AUDIO ERROR ==========");
+  console.error("STATUS:", response.status);
+  console.error("BODY:", errBody);
+  console.error("MIME:", mimeType);
+  console.error("SIZE:", buffer.length);
+  console.error("========================================");
+
+  return {
+    text: "",
+    source: "fallback_api_error",
+  };
+}
 
     const data = await response.json();
     const transcript = data?.candidates?.[0]?.content?.parts?.[0]?.text;
