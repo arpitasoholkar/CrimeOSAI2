@@ -1,7 +1,9 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useEffect, useState } from 'react'
 import { useTheme } from '../../context/ThemeContext'
 import { useAuth } from '../../context/AuthContext'
+import { apiBackend } from '../../api/api'
 import {
   ShieldIcon,
   GridIcon,
@@ -24,7 +26,7 @@ const NAV_ITEMS = [
   { to: '/cases', label: 'Cases', icon: FolderIcon },
   { to: '/my-cases', label: 'My Cases', icon: BadgeIcon },
   { to: '/new-case', label: 'New Case', icon: PlusCircleIcon },
-  { to: '/access-requests', label: 'Access Requests', icon: LockIcon },
+  { to: '/access-requests', label: 'Access Requests', icon: LockIcon, badgeKey: 'accessRequests' },
   { to: '/analysis', label: 'Analysis', icon: AnalysisIcon },
   { to: '/reports', label: 'Reports', icon: ReportIcon },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
@@ -43,6 +45,30 @@ function SidebarContent({ onNavigate }) {
   const { theme, toggleTheme } = useTheme()
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const [pendingCount, setPendingCount] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadCount = () => {
+      apiBackend
+        .get('/cases/access-requests/incoming')
+        .then((res) => {
+          if (cancelled) return
+          setPendingCount((res.data.requests || []).length)
+        })
+        .catch(() => {})
+    }
+
+    loadCount()
+    // Re-check periodically so the badge doesn't go stale while the
+    // investigator sits on another page.
+    const interval = setInterval(loadCount, 30000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [])
 
   const handleProfileClick = () => {
     onNavigate?.()
@@ -73,7 +99,7 @@ function SidebarContent({ onNavigate }) {
       </div>
 
       <nav className={styles.nav} aria-label="Primary">
-        {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
+        {NAV_ITEMS.map(({ to, label, icon: Icon, end, badgeKey }) => (
           <NavLink
             key={to}
             to={to}
@@ -83,6 +109,9 @@ function SidebarContent({ onNavigate }) {
           >
             <Icon width={18} height={18} />
             <span>{label}</span>
+            {badgeKey === 'accessRequests' && pendingCount > 0 && (
+              <span className={styles.navBadge}>{pendingCount > 9 ? '9+' : pendingCount}</span>
+            )}
           </NavLink>
         ))}
       </nav>
