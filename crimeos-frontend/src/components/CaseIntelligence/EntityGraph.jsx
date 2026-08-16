@@ -545,6 +545,8 @@ export default function EntityGraph({ entities = [], relationships = [] }) {
   const svgRef = useRef(null)
   const dragRef = useRef(null) // { id, moved }
   const userAdjustedViewRef = useRef(false)
+  const transformRef = useRef(transform)
+  transformRef.current = transform
 
   const { nodeList, linkList } = useMemo(() => buildNodesAndLinks(entities, relationships), [entities, relationships])
 
@@ -632,7 +634,8 @@ export default function EntityGraph({ entities = [], relationships = [] }) {
     const rect = svgRef.current.getBoundingClientRect()
     const x = ((clientX - rect.left) / rect.width) * WIDTH
     const y = ((clientY - rect.top) / rect.height) * HEIGHT
-    return { x: (x - transform.x) / transform.k, y: (y - transform.y) / transform.k }
+    const t = transformRef.current
+    return { x: (x - t.x) / t.k, y: (y - t.y) / t.k }
   }
 
   const handleNodePointerDown = (id) => (e) => {
@@ -681,7 +684,7 @@ export default function EntityGraph({ entities = [], relationships = [] }) {
       window.removeEventListener('pointerup', handleUp)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transform, nodeList])
+  }, [nodeList])
 
   // Shared zoom step used by the +/- buttons -- keeps the zoom level
   // clamped to the same [0.4, 2.5] range everywhere.

@@ -57,6 +57,36 @@ connectDB().catch((err) => {
   console.error("Failed to connect to shared MongoDB:", err.message);
 });
 
+// ---------- Per-case mutex for /api/investigate ----------
+//
+// assembleInvestigationVersion() computes `version` from
+// `caseDoc.investigationVersions.length + 1` -- a snapshot read before
+// this request's caseDoc.save(). If two triggers fire for the same
+// case close together (e.g. an evidence-upload auto-trigger landing
+// right after the initial-complaint investigation), both can read the
+// same pre-save length and independently compute the same "next"
+// version number. Because Mongoose sends array .push() as an atomic
+// $push rather than a full-document overwrite, BOTH saves genuinely
+// land in MongoDB -- producing two distinct version objects that are
+// both stamped e.g. `version: 1`, instead of one save clobbering the
+// other (this is the exact bug behind the "duplicate key '1'" React
+// warning on CaseDetails.jsx's investigation-history list).
+//
+// Serializing per case_id closes that window: a second call for the
+// same case only starts its read after the first call's save has
+// actually completed, so it always sees the true, up-to-date length.
+// Calls for *different* cases are unaffected and still run concurrently.
+const caseLocks = new Map(); // case_id -> tail of the pending chain
+
+function withCaseLock(caseId, fn) {
+  const prev = caseLocks.get(caseId) || Promise.resolve();
+  const next = prev.then(fn, fn); // run fn regardless of the previous call's outcome
+  // Keep the chain going, but don't let a past rejection propagate into
+  // future callers waiting on this case's lock.
+  caseLocks.set(caseId, next.catch(() => {}));
+  return next;
+}
+
 // In-memory audit log -- only used by the standalone /api/suggest + /api/decision
 // testing routes below, unrelated to the real MongoDB-backed flow.
 const auditLog = [];
@@ -134,71 +164,86 @@ app.post("/api/investigate", async (req, res) => {
   }
 
   try {
-    let caseDoc = await Case.findOne({ case_id });
-    if (!caseDoc) {
-      caseDoc = await Case.findOne({ caseId: case_id });
-    }
-    if (!caseDoc) return res.status(404).json({ error: "Case not found" });
-
-    const complaintText = extractComplaintText(caseDoc);
-
-    if (!complaintText.trim()) {
-      return res.status(400).json({
-        error: "No complaint/evidence text found for this case",
-      });
-    }
-
-    const suggestion = await engine.suggest(complaintText);
-
-    // Trigger defaults to "initial_complaint" for a case's first
-    // investigation, "manual_reinvestigation" otherwise, unless the
-    // caller (evidence upload / legal response / ingest) told us exactly
-    // what happened.
-    const resolvedTrigger =
-      trigger || (caseDoc.investigationVersions?.length ? "manual_reinvestigation" : "initial_complaint");
-
-    const newVersion = await assembleInvestigationVersion(caseDoc, suggestion, resolvedTrigger);
-
-    caseDoc.investigationVersions = caseDoc.investigationVersions || [];
-    caseDoc.investigationVersions.push(newVersion);
-
-    // Legacy mirror for anything still reading `analysis` directly
-    // (AIInvestigation.jsx's step/legal-section approval flow).
-    caseDoc.analysis = { ...suggestion, generatedAt: new Date().toISOString() };
-    caseDoc.status = "under_investigation";
-
-    const savedVersion = caseDoc.investigationVersions[caseDoc.investigationVersions.length - 1];
-
-    caseDoc.auditLog = caseDoc.auditLog || [];
-    caseDoc.auditLog.push(
-      createHashedAuditEntry({
-        action: "AI_INVESTIGATION_COMPLETED",
-        actor: "AI_ENGINE",
-        details: {
-          version: savedVersion.version,
-          trigger: resolvedTrigger,
-          risk: savedVersion.risk,
-          confidence: savedVersion.confidence,
-          newFindingsCount: savedVersion.delta?.newFindings?.length ?? savedVersion.findings.length,
-          newEntitiesCount: savedVersion.delta?.newEntities?.length ?? savedVersion.entities.length,
-        },
-        auditLog: caseDoc.auditLog,
-      })
-    );
-
-    await caseDoc.save();
-
-    res.json({
-      status: "updated",
-      case_id,
-      version: savedVersion,
-      analysis: caseDoc.analysis,
-    });
+    // Serialized per case_id -- see withCaseLock() above for why this
+    // matters: it's what prevents two near-simultaneous triggers for
+    // the same case from both computing the same "next version" number.
+    const result = await withCaseLock(case_id, () => runInvestigation(case_id, trigger));
+    res.json(result);
   } catch (err) {
     console.error(err);
+    if (err.status) {
+      return res.status(err.status).json({ error: err.message });
+    }
     res.status(500).json({ error: "Investigation failed", detail: err.message });
   }
 });
+
+async function runInvestigation(case_id, trigger) {
+  let caseDoc = await Case.findOne({ case_id });
+  if (!caseDoc) {
+    caseDoc = await Case.findOne({ caseId: case_id });
+  }
+  if (!caseDoc) {
+    const err = new Error("Case not found");
+    err.status = 404;
+    throw err;
+  }
+
+  const complaintText = extractComplaintText(caseDoc);
+
+  if (!complaintText.trim()) {
+    const err = new Error("No complaint/evidence text found for this case");
+    err.status = 400;
+    throw err;
+  }
+
+  const suggestion = await engine.suggest(complaintText);
+
+  // Trigger defaults to "initial_complaint" for a case's first
+  // investigation, "manual_reinvestigation" otherwise, unless the
+  // caller (evidence upload / legal response / ingest) told us exactly
+  // what happened.
+  const resolvedTrigger =
+    trigger || (caseDoc.investigationVersions?.length ? "manual_reinvestigation" : "initial_complaint");
+
+  const newVersion = await assembleInvestigationVersion(caseDoc, suggestion, resolvedTrigger);
+
+  caseDoc.investigationVersions = caseDoc.investigationVersions || [];
+  caseDoc.investigationVersions.push(newVersion);
+
+  // Legacy mirror for anything still reading `analysis` directly
+  // (AIInvestigation.jsx's step/legal-section approval flow).
+  caseDoc.analysis = { ...suggestion, generatedAt: new Date().toISOString() };
+  caseDoc.status = "under_investigation";
+
+  const savedVersion = caseDoc.investigationVersions[caseDoc.investigationVersions.length - 1];
+
+  caseDoc.auditLog = caseDoc.auditLog || [];
+  caseDoc.auditLog.push(
+    createHashedAuditEntry({
+      action: "AI_INVESTIGATION_COMPLETED",
+      actor: "AI_ENGINE",
+      details: {
+        version: savedVersion.version,
+        trigger: resolvedTrigger,
+        risk: savedVersion.risk,
+        confidence: savedVersion.confidence,
+        newFindingsCount: savedVersion.delta?.newFindings?.length ?? savedVersion.findings.length,
+        newEntitiesCount: savedVersion.delta?.newEntities?.length ?? savedVersion.entities.length,
+      },
+      auditLog: caseDoc.auditLog,
+    })
+  );
+
+  await caseDoc.save();
+
+  return {
+    status: "updated",
+    case_id,
+    version: savedVersion,
+    analysis: caseDoc.analysis,
+  };
+}
 
 // ---------- Approve / reject a single recommendation on the latest
 // investigation version (used by the "Next Best Action" card) ----------
