@@ -103,6 +103,13 @@ async function ingest({ text, fileBuffer, originalname = "", mimetype = "" } = {
       const audioMime =
         MIME_BY_EXTENSION[AUDIO_EXTENSIONS.find((ext) => filenameLower.endsWith(ext))] ||
         mimetype;
+        console.log("========== AUDIO DEBUG ==========");
+console.log("filename:", originalname);
+console.log("mimetype:", mimetype);
+console.log("audioMime:", audioMime);
+console.log("size:", fileBuffer.length);
+console.log("isBuffer:", Buffer.isBuffer(fileBuffer));
+console.log("================================");
       const transcription = await transcribeAudio(fileBuffer, audioMime);
 
       if (!transcription.text) {
