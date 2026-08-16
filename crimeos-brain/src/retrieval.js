@@ -13,6 +13,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { embedText, cosineSimilarity } from "./embeddings.js";
+import { hashText, loadCache, saveCache } from "./embeddingCache.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SOP_DIR = path.join(__dirname, "..", "sop_docs");
@@ -68,19 +69,46 @@ export class SOPRetriever {
     }
     this.chunks = [];
     this.vectors = [];
+
+    // Reuse cached vectors across restarts -- only unseen/changed chunk
+    // text ever needs an actual embedding API call (see
+    // embeddingCache.js for why this matters).
+    const cache = loadCache();
+    let cacheHits = 0;
+    let cacheMisses = 0;
+
     for (const chunk of allChunks) {
+      const chunkText = `${chunk.heading}\n${chunk.text}`;
+      const key = hashText(chunkText);
       try {
-        const vec = await embedText(`${chunk.heading}\n${chunk.text}`);
+        let vec = cache[key];
+        if (vec) {
+          cacheHits++;
+        } else {
+          vec = await embedText(chunkText);
+          cache[key] = vec;
+          cacheMisses++;
+        }
         this.chunks.push(chunk);
         this.vectors.push(vec);
       } catch (err) {
         console.error(`Skipping chunk "${chunk.sopId} :: ${chunk.heading}" -- embedding failed: ${err.message}`);
       }
     }
+
+    // Persist any newly-embedded chunks so the next restart doesn't
+    // have to re-embed them again.
+    if (cacheMisses > 0) {
+      saveCache(cache);
+    }
+
     if (this.chunks.length === 0) {
       throw new Error("All SOP chunks failed to embed -- index is empty");
     }
-    console.log(`SOP index built: ${this.chunks.length}/${allChunks.length} chunks embedded successfully.`);
+    console.log(
+      `SOP index built: ${this.chunks.length}/${allChunks.length} chunks embedded successfully ` +
+      `(${cacheHits} from cache, ${cacheMisses} newly embedded).`
+    );
   }
 
   /**

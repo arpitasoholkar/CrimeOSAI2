@@ -25,8 +25,31 @@ import { connectDB, Case } from "./db.js";
 import { assembleInvestigationVersion } from "./investigationState.js";
 import { createHashedAuditEntry } from "./auditHash.js";
 import { embedText, cosineSimilarity } from "./embeddings.js";
+import { hashText, loadCache, saveCache } from "./embeddingCache.js";
 
 dotenv.config();
+
+// Cache for case-complaint-text embeddings used by /api/case/:id/similar
+// below. Without this, opening a case re-embeds that case's full text
+// PLUS every other case in the database, every single time -- a few
+// minutes of normal browsing was enough to exhaust Gemini's free-tier
+// embedding quota before this fix. Text is only ever re-embedded when
+// its content actually changes (new evidence added), since the hash
+// key is the text itself. Persisted to its own file, kept separate
+// from the SOP-chunk cache in retrieval.js.
+const CASE_EMBEDDING_CACHE_FILE = ".case-embedding-cache.json";
+const caseEmbeddingCache = loadCache(CASE_EMBEDDING_CACHE_FILE);
+
+async function embedTextCached(text) {
+  const key = hashText(text);
+  if (caseEmbeddingCache[key]) {
+    return caseEmbeddingCache[key];
+  }
+  const vec = await embedText(text);
+  caseEmbeddingCache[key] = vec;
+  saveCache(caseEmbeddingCache, CASE_EMBEDDING_CACHE_FILE);
+  return vec;
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -326,11 +349,11 @@ app.get("/api/case/:case_id/similar", async (req, res) => {
       return res.json({ case_id: req.params.case_id, similarCases: [] });
     }
 
-    const targetVec = await embedText(complaintText);
+    const targetVec = await embedTextCached(complaintText);
     const scored = [];
     for (const c of candidates) {
       try {
-        const vec = await embedText(c.text);
+        const vec = await embedTextCached(c.text);
         const score = cosineSimilarity(targetVec, vec);
         const latest = (c.caseDoc.investigationVersions || []).slice(-1)[0];
         const sharedEntityTypes = latest

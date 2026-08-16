@@ -28,8 +28,8 @@
  */
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const PRIMARY_MODEL = process.env.LLM_EXTRACT_MODEL || "gemini-2.0-flash";
-const FALLBACK_MODEL = process.env.LLM_EXTRACT_FALLBACK_MODEL || "gemini-2.5-flash";
+const PRIMARY_MODEL = process.env.LLM_EXTRACT_MODEL || "gemini-flash-latest";
+const FALLBACK_MODEL = process.env.LLM_EXTRACT_FALLBACK_MODEL || "gemini-flash-lite-latest";
 
 const PLACEHOLDER_VALUES = ["YOUR_GEMINI_API_KEY_HERE", "", undefined];
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -104,7 +104,7 @@ async function extractNamesAndLanguage(text) {
     console.warn(
       "[llmExtract] GEMINI_API_KEY not set (still a placeholder) — skipping LLM call, using fallback."
     );
-    return { names: [], language: "unknown", source: "fallback_no_key" };
+    return { names: [], addresses: [], language: "unknown", source: "fallback_no_key" };
   }
 
   const prompt = `You are analyzing a cyber-crime complaint filed with Indian police. The text may be in English, Hindi, Gujarati, or a mix — including romanized Hindi/Gujarati written using English letters (e.g. "mujhe paisa chahiye").
@@ -112,6 +112,7 @@ async function extractNamesAndLanguage(text) {
 Return ONLY a JSON object, with no other text and no markdown code fences, in exactly this shape:
 {
   "names": ["array of person names mentioned in the text — exclude company names, app names, and platform names"],
+  "addresses": ["array of physical places/addresses mentioned in the text — shop fronts, delivery addresses, meeting spots, localities, landmarks, or any text describing where something happened or where someone can be found. Write each as the fullest address-like phrase found in the text (e.g. 'Shop No. 12, MG Road, Near City Mall, Surat' rather than just 'Surat'). Exclude bare city/state names with no other context. Empty array if none are mentioned."],
   "language": "one of: en, hi, gu, hi-en, gu-en, unknown"
 }
 
@@ -127,7 +128,7 @@ ${text}
     const isRetryable = primaryErr.status === 429 || primaryErr.status === 503;
     if (!isRetryable) {
       console.error("[llmExtract] Gemini API returned an error:", primaryErr.status, primaryErr.message);
-      return { names: [], language: "unknown", source: "fallback_api_error" };
+      return { names: [], addresses: [], language: "unknown", source: "fallback_api_error" };
     }
     console.log(
       `[llmExtract] Primary model (${PRIMARY_MODEL}) exhausted retries on ${primaryErr.status}, falling back to ${FALLBACK_MODEL}...`
@@ -136,7 +137,7 @@ ${text}
       response = await generateWithRetry(FALLBACK_MODEL, prompt);
     } catch (fallbackErr) {
       console.error("[llmExtract] Gemini API returned an error:", fallbackErr.status, fallbackErr.message);
-      return { names: [], language: "unknown", source: "fallback_api_error" };
+      return { names: [], addresses: [], language: "unknown", source: "fallback_api_error" };
     }
   }
 
@@ -146,7 +147,7 @@ ${text}
 
     if (!rawText) {
       console.error("[llmExtract] Gemini response had no text content:", JSON.stringify(data));
-      return { names: [], language: "unknown", source: "fallback_empty_response" };
+      return { names: [], addresses: [], language: "unknown", source: "fallback_empty_response" };
     }
 
     const cleaned = rawText.replace(/```json|```/g, "").trim();
@@ -154,16 +155,17 @@ ${text}
 
     return {
       names: Array.isArray(parsed.names) ? parsed.names : [],
+      addresses: Array.isArray(parsed.addresses) ? parsed.addresses : [],
       language: parsed.language || "unknown",
       source: "llm",
     };
   } catch (err) {
     if (err.name === "AbortError") {
       console.error(`[llmExtract] Gemini API call timed out after ${REQUEST_TIMEOUT_MS / 1000}s`);
-      return { names: [], language: "unknown", source: "fallback_timeout" };
+      return { names: [], addresses: [], language: "unknown", source: "fallback_timeout" };
     }
     console.error("[llmExtract] Failed to call or parse Gemini response:", err.message);
-    return { names: [], language: "unknown", source: "fallback_exception" };
+    return { names: [], addresses: [], language: "unknown", source: "fallback_exception" };
   }
 }
 

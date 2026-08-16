@@ -123,7 +123,7 @@ export default function AIInvestigation() {
           {analysis?.confidence != null && (
             <span className={styles.confidence}>{Math.round(analysis.confidence * 100)}% confidence</span>
           )}
-          {versions.length > 0 && (
+          {/* {versions.length > 0 && (
             <button
               type="button"
               className={styles.historyToggle}
@@ -138,7 +138,7 @@ export default function AIInvestigation() {
                 style={{ transform: showHistory ? 'rotate(90deg)' : 'none' }}
               />
             </button>
-          )}
+          )} */}
         </div>
       </div>
 

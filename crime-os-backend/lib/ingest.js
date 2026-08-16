@@ -134,6 +134,14 @@ async function ingest({ text, fileBuffer, originalname = "", mimetype = "" } = {
   const llmResult = await extractNamesAndLanguage(resolvedText);
 
   entities.names = llmResult.names;
+  // Physical places/addresses mentioned in the complaint text -- this is
+  // what feeds the Geographic Intelligence map's "ADDRESS" entity type
+  // (see investigationState.js EVIDENCE_ENTITY_MAP). Without this, no
+  // evidence-side entity ever had lat/lng, so the map stayed empty for
+  // every case until a bank/telecom legal response came back with a
+  // KYC_ADDRESS/TOWER_LOCATION -- even when the complaint text itself
+  // clearly named a real place.
+  entities.addresses = llmResult.addresses;
 
   const language =
     llmResult.language && llmResult.language !== "unknown"
