@@ -37,7 +37,7 @@ function loadGoogleMapsScript(apiKey) {
  *
  * Uses the Google Maps JavaScript API when VITE_GOOGLE_MAPS_API_KEY is
  * configured (see .env.example), otherwise falls back to Leaflet +
- * OpenStreetMap tiles -- a real, zero-setup interactive map so this
+ * CARTO basemap tiles -- a real, zero-setup interactive map so this
  * works out of the box with no API key or billing account required.
  *
  * @param {{ id: string, label: string, lat: number, lng: number, type?: string, detail?: string }[]} markers
@@ -49,7 +49,7 @@ export default function LocationMap({ markers = [] }) {
 }
 
 // ---------------------------------------------------------------------
-// Leaflet / OpenStreetMap (default, no API key needed)
+// Leaflet / CARTO basemap tiles (default, no API key needed)
 // ---------------------------------------------------------------------
 
 function LeafletMapView({ markers }) {
@@ -77,9 +77,18 @@ function LeafletMapView({ markers }) {
 
       if (!mapRef.current) {
         mapRef.current = L.map(containerRef.current, { scrollWheelZoom: false }).setView([20.5937, 78.9629], 4.5)
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        // Switched from tile.openstreetmap.org's raw tile server to
+        // CARTO's free basemap tiles. OSM's own Tile Usage Policy
+        // (osm.wiki/Blocked, seen as the 403s this replaces) explicitly
+        // asks apps doing anything beyond light/casual use to point at
+        // a different provider instead of their volunteer-run servers --
+        // CARTO's basemaps are free, need no API key, and are meant for
+        // exactly this kind of app usage. Map data is still OpenStreetMap's;
+        // CARTO just serves the rendered tiles.
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
           maxZoom: 19,
+          subdomains: 'abcd',
         }).addTo(mapRef.current)
         layerRef.current = L.layerGroup().addTo(mapRef.current)
       }
@@ -133,7 +142,7 @@ function LeafletMapView({ markers }) {
     <div className={styles.mapShell}>
       {!ready && <div className={styles.mapLoading}>Loading map…</div>}
       <div ref={containerRef} className={styles.mapEl} />
-      <span className={styles.attribution}>OpenStreetMap</span>
+      <span className={styles.attribution}>CARTO / OpenStreetMap</span>
       <span className={styles.pinCount}>{markers.length} location{markers.length === 1 ? '' : 's'}</span>
     </div>
   )

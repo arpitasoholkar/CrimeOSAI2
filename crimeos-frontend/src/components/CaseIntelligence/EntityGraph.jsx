@@ -91,6 +91,8 @@ export default function EntityGraph({ entities = [], relationships = [] }) {
   const dragRef = useRef(null) // { id, moved }
   const panRef = useRef(null) // { startX, startY, startTx, startTy }
   const userAdjustedViewRef = useRef(false)
+  const transformRef = useRef(transform)
+  transformRef.current = transform
 
   const { nodeList, linkList } = useMemo(() => buildNodesAndLinks(entities, relationships), [entities, relationships])
 
@@ -195,7 +197,8 @@ export default function EntityGraph({ entities = [], relationships = [] }) {
     const rect = svgRef.current.getBoundingClientRect()
     const x = ((clientX - rect.left) / rect.width) * WIDTH
     const y = ((clientY - rect.top) / rect.height) * HEIGHT
-    return { x: (x - transform.x) / transform.k, y: (y - transform.y) / transform.k }
+    const t = transformRef.current
+    return { x: (x - t.x) / t.k, y: (y - t.y) / t.k }
   }
 
   const handleNodePointerDown = (id) => (e) => {
@@ -219,11 +222,11 @@ export default function EntityGraph({ entities = [], relationships = [] }) {
         return
       }
       if (panRef.current) {
-  const { startX, startY, startTx, startTy } = panRef.current
-  const dx = e.clientX - startX
-  const dy = e.clientY - startY
-  setTransform((t) => ({ ...t, x: startTx + dx, y: startTy + dy }))
-}
+        const { startX, startY, startTx, startTy } = panRef.current
+        const dx = e.clientX - startX
+        const dy = e.clientY - startY
+        setTransform((t) => ({ ...t, x: startTx + dx, y: startTy + dy }))
+      }
     }
 
     const handleUp = () => {
@@ -252,19 +255,35 @@ export default function EntityGraph({ entities = [], relationships = [] }) {
       window.removeEventListener('pointerup', handleUp)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transform, nodeList])
+  }, [nodeList])
 
   const handleBackgroundPointerDown = (e) => {
     userAdjustedViewRef.current = true
-    panRef.current = { startX: e.clientX, startY: e.clientY, startTx: transform.x, startTy: transform.y }
+    panRef.current = { startX: e.clientX, startY: e.clientY, startTx: transformRef.current.x, startTy: transformRef.current.y }
   }
 
-  const handleWheel = (e) => {
-    e.preventDefault()
-    userAdjustedViewRef.current = true
-    const factor = e.deltaY > 0 ? 0.9 : 1.1
-    setTransform((t) => ({ ...t, k: clamp(t.k * factor, 0.4, 2.5) }))
-  }
+  // Wheel-to-zoom needs preventDefault() so scrolling over the graph
+  // zooms it instead of scrolling the page. React's onWheel prop is
+  // attached as a *passive* listener (same default the browser itself
+  // uses for scroll perf), and calling preventDefault() inside a passive
+  // listener both throws "Unable to preventDefault inside passive event
+  // listener invocation" on every tick AND silently fails to actually
+  // block the page scroll -- the two were fighting each other. Attaching
+  // the listener manually with { passive: false } fixes both.
+  useEffect(() => {
+    const el = svgRef.current
+    if (!el) return
+
+    const onWheelNonPassive = (e) => {
+      e.preventDefault()
+      userAdjustedViewRef.current = true
+      const factor = e.deltaY > 0 ? 0.9 : 1.1
+      setTransform((t) => ({ ...t, k: clamp(t.k * factor, 0.4, 2.5) }))
+    }
+
+    el.addEventListener('wheel', onWheelNonPassive, { passive: false })
+    return () => el.removeEventListener('wheel', onWheelNonPassive)
+  }, [])
 
   const resetView = () => {
     userAdjustedViewRef.current = false
@@ -304,7 +323,6 @@ export default function EntityGraph({ entities = [], relationships = [] }) {
           ref={svgRef}
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
           className={styles.svg}
-          onWheel={handleWheel}
           onPointerDown={handleBackgroundPointerDown}
         >
           <defs>

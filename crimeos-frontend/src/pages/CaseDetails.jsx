@@ -487,7 +487,7 @@ function NextBestActionPanel({ caseId, latest, onChanged }) {
           {pending.map((rec) => {
             const urgency = URGENCY_META[rec.urgency] || URGENCY_META.low
             return (
-              <div key={rec.id} className={styles.recCard}>
+              <div key={`${rec.id}-${rec.action}-${rec.urgency}`} className={styles.recCard}>
                 <div className={styles.recHead}>
                   <p className={styles.recAction}>{rec.action.toUpperCase()}</p>
                   <span className={styles.urgencyBadge} style={{ color: urgency.color }}>{urgency.label}</span>
