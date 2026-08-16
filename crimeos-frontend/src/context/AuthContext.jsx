@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import { apiBackend } from '../api/api'
 
 const AuthContext = createContext(null)
-const TOKEN_KEY = 'crimeos_token'
+const TOKEN_KEY = 'trinetra_token'
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)

@@ -17,7 +17,7 @@ import {
 } from '../components/Icons/Icons'
 import styles from './Settings.module.css'
 
-const PREFS_KEY = 'crimeos-notification-prefs'
+const PREFS_KEY = 'trinetra-notification-prefs'
 
 const DEFAULT_PREFS = {
   accessRequests: true,
@@ -81,7 +81,7 @@ export default function Settings() {
           {theme === 'dark' ? <MoonIcon width={16} height={16} /> : <SunIcon width={16} height={16} />}
           <h3 className={styles.panelTitle}>Appearance</h3>
         </div>
-        <p className={styles.panelDesc}>Choose how CrimeOS looks on this device.</p>
+        <p className={styles.panelDesc}>Choose how Trinetra looks on this device.</p>
 
         <div className={styles.themeOptions}>
           <button
@@ -148,7 +148,7 @@ export default function Settings() {
           <UserIcon width={16} height={16} />
           <h3 className={styles.panelTitle}>Account</h3>
         </div>
-        <p className={styles.panelDesc}>Your identity across CrimeOS.</p>
+        <p className={styles.panelDesc}>Your identity across Trinetra.</p>
 
         <div className={styles.accountGrid}>
           <div className={styles.accountRow}>

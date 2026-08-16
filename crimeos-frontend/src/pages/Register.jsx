@@ -43,10 +43,8 @@ export default function Register() {
             <ShieldIcon width={24} height={24} />
           </span>
           <div>
-            <p className={styles.brandName}>
-              CRIME<span>OS</span>
-            </p>
-            <p className={styles.brandSub}>Cyber Investigation OS</p>
+            <p className={styles.brandName}>TRINETRA</p>
+            <p className={styles.brandSub}>Decoding ~ The Unknown</p>
           </div>
         </div>
 

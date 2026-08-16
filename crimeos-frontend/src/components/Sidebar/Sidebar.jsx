@@ -100,9 +100,9 @@ function SidebarContent({ onNavigate }) {
         </span>
         <div>
           <p className={styles.brandName}>
-            CRIME<span>OS</span>
+            TRI<span>NETRA</span>
           </p>
-          <p className={styles.brandSub}>Cyber Investigation OS</p>
+          <p className={styles.brandSub}>Decoding ~ The Unknown</p>
         </div>
       </div>
 
