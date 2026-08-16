@@ -204,6 +204,55 @@ const investigationVersionSchema = new mongoose.Schema(
 // LEGAL / PROVIDER REQUEST SCHEMA (from crimeos-summary)
 // =========================================================
 
+// =========================================================
+// CASE ACCESS REQUEST SCHEMA
+// =========================================================
+//
+// Only the case's investigators[] can see full case data. Anyone else
+// hits a stripped preview and can file one of these to ask the lead
+// investigator for access -- see requestCaseAccess/respondToAccessRequest
+// in caseController.js.
+//
+
+const accessRequestSchema = new mongoose.Schema(
+  {
+    requestId: {
+      type: String,
+      required: true,
+    },
+    requesterUsername: {
+      type: String,
+      required: true,
+    },
+    requesterName: {
+      type: String,
+      default: null,
+    },
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+    },
+    message: {
+      type: String,
+      default: null,
+    },
+    requestedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    respondedAt: {
+      type: Date,
+      default: null,
+    },
+    respondedBy: {
+      type: String,
+      default: null,
+    },
+  },
+  { _id: false }
+);
+
 const requestSchema = new mongoose.Schema(
   {
     requestId: {
@@ -343,6 +392,24 @@ const caseSchema = new mongoose.Schema(
     title: {
       type: String,
       default: "Untitled Case",
+    },
+
+    // ---- case access control ----
+    // Only investigators[] (plus anyone the lead approves via
+    // accessRequests[]) can see this case's full data. Everyone else
+    // gets a stripped preview and a "Request Access" option.
+    leadInvestigator: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    investigators: {
+      type: [String],
+      default: [],
+    },
+    accessRequests: {
+      type: [accessRequestSchema],
+      default: [],
     },
 
     // ---- status ----

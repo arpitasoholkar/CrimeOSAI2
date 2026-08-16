@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { FileTextIcon, ImageIcon, AudioIcon, ChevronRightIcon } from '../Icons/Icons'
+import { FileTextIcon, ImageIcon, AudioIcon, ChevronRightIcon, LockIcon, CheckCircleIcon } from '../Icons/Icons'
+import { apiBackend } from '../../api/api'
 import styles from './CaseCard.module.css'
 
 const STATUS_STYLE = {
@@ -21,7 +23,24 @@ const EVIDENCE_ICON = {
 }
 
 export default function CaseCard({ caseItem, index = 0, onOpen }) {
-  const { id, title, status, evidence, extraEvidence, risk, updated } = caseItem
+  const { id, title, status, evidence, extraEvidence, risk, updated, isInvestigator, hasPendingRequest } = caseItem
+  const [pending, setPending] = useState(hasPendingRequest)
+  const [requesting, setRequesting] = useState(false)
+  const [justRequested, setJustRequested] = useState(false)
+
+  const handleRequestAccess = async (e) => {
+    e.stopPropagation()
+    setRequesting(true)
+    try {
+      await apiBackend.post(`/cases/${id}/access-request`)
+      setPending(true)
+      setJustRequested(true)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setRequesting(false)
+    }
+  }
 
   return (
     <motion.div
@@ -64,9 +83,28 @@ export default function CaseCard({ caseItem, index = 0, onOpen }) {
         <span className={styles.updatedValue}>{updated}</span>
       </div>
 
-      <button type="button" className={styles.openBtn} onClick={() => onOpen?.(id)} aria-label={`Open ${id}`}>
-        <ChevronRightIcon width={17} height={17} />
-      </button>
+      {isInvestigator === false ? (
+        pending ? (
+          <span className={styles.pendingLabel}>
+            {justRequested ? <CheckCircleIcon width={13} height={13} /> : <LockIcon width={13} height={13} />}
+            {justRequested ? 'Requested' : 'Request Pending'}
+          </span>
+        ) : (
+          <button
+            type="button"
+            className={styles.requestBtn}
+            onClick={handleRequestAccess}
+            disabled={requesting}
+          >
+            <LockIcon width={13} height={13} />
+            {requesting ? 'Requesting…' : 'Request Access'}
+          </button>
+        )
+      ) : (
+        <button type="button" className={styles.openBtn} onClick={() => onOpen?.(id)} aria-label={`Open ${id}`}>
+          <ChevronRightIcon width={17} height={17} />
+        </button>
+      )}
     </motion.div>
   )
 }

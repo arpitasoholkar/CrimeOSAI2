@@ -7,6 +7,8 @@ import Dashboard from './pages/Dashboard'
 import Cases from './pages/Cases'
 import NewCase from './pages/NewCase'
 import CaseDetails from './pages/CaseDetails'
+import MyCases from './pages/MyCases'
+import AccessRequests from './pages/AccessRequests'
 import AIInvestigation from './pages/AIInvestigation'
 import PlaceholderPage from './pages/PlaceholderPage'
 import Login from './pages/Login'
@@ -38,6 +40,8 @@ function AppShell() {
             <Route path="/cases/:caseId" element={<CaseDetails />} />
             <Route path="/cases/:caseId/investigation" element={<AIInvestigation />} />
             <Route path="/new-case" element={<NewCase />} />
+            <Route path="/my-cases" element={<MyCases />} />
+            <Route path="/access-requests" element={<AccessRequests />} />
             <Route path="/analysis" element={<PlaceholderPage title="Analysis" description="AI reasoning output — risk scoring, timelines and recommendations." />} />
             <Route path="/reports" element={<PlaceholderPage title="Reports" description="Generated investigation reports, ready to export." />} />
             <Route path="/settings" element={<PlaceholderPage title="Settings" description="Workspace, notification and account preferences." />} />

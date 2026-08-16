@@ -130,6 +130,18 @@
   font-family: var(--font-mono);
 }
 
+.readonlyField {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text-secondary);
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
 .error {
   margin: 0;
   font-size: 12.5px;

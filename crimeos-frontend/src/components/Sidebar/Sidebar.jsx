@@ -14,13 +14,17 @@ import {
   MoonIcon,
   XIcon,
   LogOutIcon,
+  BadgeIcon,
+  LockIcon,
 } from '../Icons/Icons'
 import styles from './Sidebar.module.css'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: GridIcon, end: true },
   { to: '/cases', label: 'Cases', icon: FolderIcon },
+  { to: '/my-cases', label: 'My Cases', icon: BadgeIcon },
   { to: '/new-case', label: 'New Case', icon: PlusCircleIcon },
+  { to: '/access-requests', label: 'Access Requests', icon: LockIcon },
   { to: '/analysis', label: 'Analysis', icon: AnalysisIcon },
   { to: '/reports', label: 'Reports', icon: ReportIcon },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },

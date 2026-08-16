@@ -3,6 +3,12 @@ import express from "express";
 import {
   createCase,
   getCaseById,
+  requestCaseAccess,
+  approveCaseAccess,
+  rejectCaseAccess,
+  getMyCases,
+  getMyAccessRequests,
+  getIncomingAccessRequests,
   generateLegalRequest,
   approveLegalRequest,
   dispatchLegalRequest,
@@ -31,9 +37,47 @@ const router = express.Router();
    CASES
 =========================== */
 
-router.post("/", createCase);
+router.post("/", requireAuth, createCase);
 
-router.get("/:case_id", getCaseById);
+/* ===========================
+   CASE ACCESS CONTROL
+   (must come before /:case_id so "/my" and "/access-requests/..."
+   aren't swallowed as a case_id param)
+=========================== */
+
+router.get("/my", requireAuth, getMyCases);
+
+router.get(
+  "/access-requests/mine",
+  requireAuth,
+  getMyAccessRequests
+);
+
+router.get(
+  "/access-requests/incoming",
+  requireAuth,
+  getIncomingAccessRequests
+);
+
+router.get("/:case_id", requireAuth, getCaseById);
+
+router.post(
+  "/:case_id/access-request",
+  requireAuth,
+  requestCaseAccess
+);
+
+router.post(
+  "/:case_id/access-request/:requestId/approve",
+  requireAuth,
+  approveCaseAccess
+);
+
+router.post(
+  "/:case_id/access-request/:requestId/reject",
+  requireAuth,
+  rejectCaseAccess
+);
 
 /* ===========================
    LEGAL REQUESTS

@@ -6,7 +6,7 @@ import {
   FileTextIcon, ImageIcon, AudioIcon, SparklesIcon, ChevronRightIcon,
   AlertTriangleIcon, TrendUpIcon, TrendDownIcon,
   HelpCircleIcon, MapPinIcon, ScaleIcon, HistoryIcon, RefreshIcon,
-  CheckIcon, XCircleIcon, LinkIcon, UploadCloudIcon,
+  CheckIcon, XCircleIcon, LinkIcon, UploadCloudIcon, LockIcon,
 } from '../components/Icons/Icons'
 import EntityGraph from '../components/CaseIntelligence/EntityGraph'
 import LocationMap from '../components/CaseIntelligence/LocationMap'
@@ -59,6 +59,7 @@ export default function CaseDetails() {
   const navigate = useNavigate()
 
   const [caseDoc, setCaseDoc] = useState(null)
+  const [isInvestigator, setIsInvestigator] = useState(true)
   const [timeline, setTimeline] = useState([])
   const [similarCases, setSimilarCases] = useState({ status: 'loading', data: [] })
   const [error, setError] = useState(null)
@@ -66,29 +67,49 @@ export default function CaseDetails() {
   const [reinvestigating, setReinvestigating] = useState(false)
   const [actionError, setActionError] = useState(null)
   const [compareVersion, setCompareVersion] = useState(null)
+  const [requesting, setRequesting] = useState(false)
+  const [requested, setRequested] = useState(false)
 
   const loadCase = useCallback(() => {
-    return apiBackend.get(`/cases/${caseId}`).then((res) => setCaseDoc(res.data.case))
+    return apiBackend.get(`/cases/${caseId}`).then((res) => {
+      setCaseDoc(res.data.case)
+      setIsInvestigator(res.data.isInvestigator !== false)
+    })
   }, [caseId])
 
   useEffect(() => {
     setLoading(true)
     setError(null)
-    Promise.all([
-      loadCase(),
-      apiBackend.get(`/cases/${caseId}/timeline`).then((res) => setTimeline(res.data.timeline || [])).catch(() => setTimeline([])),
-    ])
+    loadCase()
       .catch((err) => setError(err.response?.data?.message || 'Failed to load this case.'))
       .finally(() => setLoading(false))
   }, [caseId, loadCase])
 
   useEffect(() => {
+    if (!isInvestigator) return
+    apiBackend.get(`/cases/${caseId}/timeline`).then((res) => setTimeline(res.data.timeline || [])).catch(() => setTimeline([]))
+  }, [caseId, isInvestigator])
+
+  useEffect(() => {
+    if (!isInvestigator) return
     setSimilarCases({ status: 'loading', data: [] })
     apiBrain
       .get(`/api/case/${caseId}/similar`)
       .then((res) => setSimilarCases({ status: 'ok', data: res.data.similarCases || [] }))
       .catch(() => setSimilarCases({ status: 'error', data: [] }))
-  }, [caseId])
+  }, [caseId, isInvestigator])
+
+  const handleRequestAccess = async () => {
+    setRequesting(true)
+    try {
+      await apiBackend.post(`/cases/${caseId}/access-request`)
+      setRequested(true)
+    } catch (err) {
+      setActionError(err.response?.data?.message || 'Could not send the access request.')
+    } finally {
+      setRequesting(false)
+    }
+  }
 
   const versions = caseDoc?.investigationVersions || []
   const latest = versions.length ? versions[versions.length - 1] : null
@@ -110,6 +131,53 @@ export default function CaseDetails() {
   if (loading) return <p className={styles.state}>Loading investigation…</p>
   if (error) return <p className={styles.stateError}>{error}</p>
   if (!caseDoc) return null
+
+  if (!isInvestigator) {
+    const risk = caseDoc.severity ? RISK_META[caseDoc.severity] : null
+    return (
+      <motion.div
+        className={styles.wrap}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <div className={styles.header}>
+          <div>
+            <p className={styles.caseId}>{caseDoc.case_id}</p>
+            <h2 className={styles.title}>{caseDoc.title || 'Untitled Case'}</h2>
+            <div className={styles.headerMeta}>
+              <span className={styles.statusBadge}>{STATUS_LABEL[caseDoc.status] || caseDoc.status}</span>
+              {risk && (
+                <span className={styles.riskBadge} style={{ color: risk.color, background: risk.bg }}>
+                  {risk.label} risk
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <section className={styles.section} style={{ textAlign: 'center', padding: '48px 20px' }}>
+          <LockIcon width={28} height={28} style={{ opacity: 0.6, marginBottom: 12 }} />
+          <p className={styles.title} style={{ fontSize: 16 }}>You don't have access to this case</p>
+          <p className={styles.empty} style={{ marginBottom: 18 }}>
+            Request access from the lead investigator to view evidence, findings, and the full case record.
+          </p>
+          {actionError && <p className={styles.actionError} style={{ marginBottom: 12 }}>{actionError}</p>}
+          {requested ? (
+            <span className={styles.statusBadge}>Access Requested</span>
+          ) : (
+            <button type="button" className={styles.secondaryBtn} disabled={requesting} onClick={handleRequestAccess}>
+              {requesting ? 'Requesting…' : 'Request Access'}
+            </button>
+          )}
+        </section>
+
+        <button type="button" className={styles.backBtn} onClick={() => navigate('/')}>
+          ← Back to Dashboard
+        </button>
+      </motion.div>
+    )
+  }
 
   return (
     <motion.div

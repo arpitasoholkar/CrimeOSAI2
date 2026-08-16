@@ -1,0 +1,171 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 780px;
+  margin: 0 auto;
+}
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.panelTitle {
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+}
+
+.itemInfo {
+  min-width: 0;
+}
+
+.itemTitle {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.itemTitle a {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  text-decoration: none;
+}
+
+.itemTitle a:hover {
+  text-decoration: underline;
+}
+
+.itemMessage {
+  margin: 0 0 4px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.itemMeta {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+}
+
+.itemActions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.approveBtn,
+.rejectBtn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.approveBtn {
+  background: var(--success-soft);
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.approveBtn:hover:not(:disabled) {
+  background: var(--success);
+  color: #fff;
+}
+
+.rejectBtn {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.rejectBtn:hover:not(:disabled) {
+  background: var(--danger);
+  color: #fff;
+}
+
+.approveBtn:disabled,
+.rejectBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.statusBadge {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  text-transform: capitalize;
+}
+
+.statusPending {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+.statusApproved {
+  background: var(--success-soft);
+  color: var(--success);
+}
+.statusRejected {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.stateMsg {
+  padding: 20px 12px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+.actionError {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-size: 13px;
+  margin: 0;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 12px;
+  color: var(--text-tertiary);
+}
+
+.emptyState p {
+  margin: 0;
+  font-size: 13px;
+}

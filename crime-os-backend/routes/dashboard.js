@@ -1,5 +1,6 @@
 import express from "express";
 import Case from "./cases/caseModel.js";
+import { requireAuth } from "../lib/auth.js";
 
 const router = express.Router();
 
@@ -150,10 +151,11 @@ function escapeRegExp(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-router.get("/cases", async (req, res) => {
+router.get("/cases", requireAuth, async (req, res) => {
   try {
     const { status, q } = req.query;
     const isPaginated = req.query.page !== undefined;
+    const username = req.user.username;
 
     const filter = {};
 
@@ -168,6 +170,10 @@ router.get("/cases", async (req, res) => {
 
     const shape = (c) => {
       const chips = evidenceChips(c);
+      const isInvestigator = (c.investigators || []).includes(username);
+      const hasPendingRequest = !isInvestigator && (c.accessRequests || []).some(
+        (r) => r.requesterUsername === username && r.status === "pending"
+      );
       return {
         id: c.case_id,
         title: c.title || "Untitled Case",
@@ -176,6 +182,8 @@ router.get("/cases", async (req, res) => {
         extraEvidence: Math.max(0, chips.length - 3),
         risk: riskLabel(c.severity),
         updated: timeAgo(c.updatedAt),
+        isInvestigator,
+        hasPendingRequest,
       };
     };
 

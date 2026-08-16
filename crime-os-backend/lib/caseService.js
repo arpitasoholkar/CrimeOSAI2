@@ -1,7 +1,7 @@
 import Case from "../routes/cases/caseModel.js";
 import Counter from "../models/Counter.js";
 
-export async function saveEvidence({ caseId, evidence }) {
+export async function saveEvidence({ caseId, evidence, caseName, user }) {
   // Generate a unique complaint ID for every upload
   const complaintSeq = await getNextSequence("complaint");
   const complaintId = generateComplaintId(complaintSeq);
@@ -24,7 +24,13 @@ export async function saveEvidence({ caseId, evidence }) {
 
     const newCase = await Case.create({
       case_id: newCaseId,
+      title: caseName && caseName.trim() ? caseName.trim() : "Untitled Case",
       evidence: [evidenceItem],
+      // Whoever files the initial complaint becomes the case's lead
+      // investigator and its first (only, for now) investigator. This
+      // is what request-access is checked against everywhere else.
+      leadInvestigator: user?.username || null,
+      investigators: user?.username ? [user.username] : [],
     });
 
     return newCase;

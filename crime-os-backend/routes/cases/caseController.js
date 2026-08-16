@@ -41,6 +41,7 @@ const createCase = async (req, res) => {
 
     const {
       text,
+      title,
       entities = [],
       language = "en",
       source_type = "unknown",
@@ -70,6 +71,11 @@ const createCase = async (req, res) => {
 
     const newCase = new Case({
       case_id: caseId,
+
+      title: title && title.trim() ? title.trim() : "Untitled Case",
+
+      leadInvestigator: req.user?.username || null,
+      investigators: req.user?.username ? [req.user.username] : [],
 
       complaint: {
         raw: text,
@@ -166,8 +172,39 @@ const getCaseById = async (req, res) => {
       });
     }
 
+    const username = req.user?.username || null;
+    const isInvestigator =
+      !!username && caseData.investigators.includes(username);
+
+    // Not on this case's investigator list -- return a stripped preview
+    // instead of the full case (evidence, entities, timeline, requests,
+    // etc). The frontend uses this to show a locked state with a
+    // "Request Access" action rather than the full case UI.
+    if (!isInvestigator) {
+      const pendingRequest = username
+        ? caseData.accessRequests.find(
+            (r) => r.requesterUsername === username && r.status === "pending"
+          )
+        : null;
+
+      return res.status(200).json({
+        success: true,
+        isInvestigator: false,
+        hasPendingRequest: !!pendingRequest,
+        case: {
+          case_id: caseData.case_id,
+          title: caseData.title,
+          status: caseData.status,
+          severity: caseData.severity,
+          leadInvestigator: caseData.leadInvestigator,
+          createdAt: caseData.createdAt,
+        },
+      });
+    }
+
     return res.status(200).json({
       success: true,
+      isInvestigator: true,
       case: caseData,
     });
   } catch (error) {
@@ -176,6 +213,274 @@ const getCaseById = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch case",
+      error: error.message,
+    });
+  }
+};
+
+// =========================================================
+// CASE ACCESS CONTROL
+// =========================================================
+//
+// POST /cases/:case_id/access-request
+//
+// A non-investigator asks the lead investigator for access. Rejects if
+// the requester is already on the case or already has a pending request
+// -- one open request per person per case at a time.
+//
+
+const requestCaseAccess = async (req, res) => {
+  try {
+    const { case_id } = req.params;
+    const { message = null } = req.body;
+
+    const caseData = await Case.findOne({ case_id });
+    if (!caseData) {
+      return res.status(404).json({ success: false, message: "Case not found" });
+    }
+
+    const requester = await User.findById(req.user.id);
+    if (!requester) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    if (caseData.investigators.includes(requester.username)) {
+      return res.status(400).json({
+        success: false,
+        message: "You already have access to this case",
+      });
+    }
+
+    const existingPending = caseData.accessRequests.find(
+      (r) => r.requesterUsername === requester.username && r.status === "pending"
+    );
+    if (existingPending) {
+      return res.status(400).json({
+        success: false,
+        message: "You already have a pending request for this case",
+      });
+    }
+
+    const requestId = `ACR-${Date.now()}`;
+
+    caseData.accessRequests.push({
+      requestId,
+      requesterUsername: requester.username,
+      requesterName: requester.name,
+      status: "pending",
+      message,
+      requestedAt: new Date(),
+    });
+
+    await caseData.save();
+
+    // Notify the lead investigator by email, if we can find one.
+    if (caseData.leadInvestigator) {
+      const lead = await User.findOne({ username: caseData.leadInvestigator });
+      if (lead?.email) {
+        const html = `
+          <div style="font-family: Arial, sans-serif; font-size: 14px; color:#1a1a1a;">
+            <p><strong>${requester.name}</strong> (${requester.role || "Investigator"}, ${requester.organisation || ""}) has requested access to case <strong>${caseData.case_id}</strong> — "${caseData.title}".</p>
+            ${message ? `<p style="background:#f7f8fa; border-left:3px solid #0f2a4a; padding:10px 14px;">${message}</p>` : ""}
+            <p>Review and respond to this request from the case's Access Requests panel in Crime OS AI.</p>
+          </div>
+        `;
+        try {
+          await sendLegalRequestEmail({
+            to: lead.email,
+            subject: `Access request for case ${caseData.case_id}`,
+            html,
+          });
+        } catch (emailErr) {
+          // Don't fail the request just because the notification email
+          // didn't go out -- the request is still recorded and visible
+          // in-app either way.
+          console.error("[requestCaseAccess] Failed to send notification email:", emailErr);
+        }
+      }
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: "Access request sent",
+      requestId,
+    });
+  } catch (error) {
+    console.error("Request case access error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to request case access",
+      error: error.message,
+    });
+  }
+};
+
+// =========================================================
+// POST /cases/:case_id/access-request/:requestId/approve
+// POST /cases/:case_id/access-request/:requestId/reject
+//
+// Lead-investigator-only. Approving adds the requester to
+// investigators[]; rejecting just marks the request rejected.
+//
+
+const respondToAccessRequest = (decision) => async (req, res) => {
+  try {
+    const { case_id, requestId } = req.params;
+
+    const caseData = await Case.findOne({ case_id });
+    if (!caseData) {
+      return res.status(404).json({ success: false, message: "Case not found" });
+    }
+
+    if (caseData.leadInvestigator !== req.user.username) {
+      return res.status(403).json({
+        success: false,
+        message: "Only this case's lead investigator can respond to access requests",
+      });
+    }
+
+    const accessRequest = caseData.accessRequests.find(
+      (r) => r.requestId === requestId
+    );
+    if (!accessRequest) {
+      return res.status(404).json({ success: false, message: "Access request not found" });
+    }
+    if (accessRequest.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: `This request was already ${accessRequest.status}`,
+      });
+    }
+
+    accessRequest.status = decision;
+    accessRequest.respondedAt = new Date();
+    accessRequest.respondedBy = req.user.username;
+
+    if (decision === "approved" && !caseData.investigators.includes(accessRequest.requesterUsername)) {
+      caseData.investigators.push(accessRequest.requesterUsername);
+    }
+
+    await caseData.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Access request ${decision}`,
+      accessRequest,
+    });
+  } catch (error) {
+    console.error("Respond to access request error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to respond to access request",
+      error: error.message,
+    });
+  }
+};
+
+const approveCaseAccess = respondToAccessRequest("approved");
+const rejectCaseAccess = respondToAccessRequest("rejected");
+
+// =========================================================
+// GET /cases/my
+//
+// Cases the logged-in officer is an investigator on.
+//
+
+const getMyCases = async (req, res) => {
+  try {
+    const cases = await Case.find(
+      { investigators: req.user.username },
+      "case_id title status severity updatedAt leadInvestigator investigators"
+    )
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    return res.status(200).json({ success: true, cases });
+  } catch (error) {
+    console.error("Get my cases error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch your cases",
+      error: error.message,
+    });
+  }
+};
+
+// =========================================================
+// GET /cases/access-requests/mine
+//
+// The logged-in officer's own outgoing access requests, across all
+// cases, newest first -- for their personal status panel.
+//
+
+const getMyAccessRequests = async (req, res) => {
+  try {
+    const cases = await Case.find(
+      { "accessRequests.requesterUsername": req.user.username },
+      "case_id title accessRequests"
+    ).lean();
+
+    const requests = [];
+    for (const c of cases) {
+      for (const r of c.accessRequests) {
+        if (r.requesterUsername === req.user.username) {
+          requests.push({
+            case_id: c.case_id,
+            caseTitle: c.title,
+            ...r,
+          });
+        }
+      }
+    }
+
+    requests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt));
+
+    return res.status(200).json({ success: true, requests });
+  } catch (error) {
+    console.error("Get my access requests error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch your access requests",
+      error: error.message,
+    });
+  }
+};
+
+// =========================================================
+// GET /cases/access-requests/incoming
+//
+// Pending requests waiting on the logged-in officer to approve/reject,
+// across every case they lead.
+//
+
+const getIncomingAccessRequests = async (req, res) => {
+  try {
+    const cases = await Case.find(
+      { leadInvestigator: req.user.username },
+      "case_id title accessRequests"
+    ).lean();
+
+    const requests = [];
+    for (const c of cases) {
+      for (const r of c.accessRequests) {
+        if (r.status === "pending") {
+          requests.push({
+            case_id: c.case_id,
+            caseTitle: c.title,
+            ...r,
+          });
+        }
+      }
+    }
+
+    requests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt));
+
+    return res.status(200).json({ success: true, requests });
+  } catch (error) {
+    console.error("Get incoming access requests error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch incoming access requests",
       error: error.message,
     });
   }
@@ -1255,6 +1560,12 @@ const getCaseTimeline = async (req, res) => {
 export {
   createCase,
   getCaseById,
+  requestCaseAccess,
+  approveCaseAccess,
+  rejectCaseAccess,
+  getMyCases,
+  getMyAccessRequests,
+  getIncomingAccessRequests,
   generateLegalRequest,
   approveLegalRequest,
   dispatchLegalRequest,
