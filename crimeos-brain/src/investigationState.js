@@ -22,6 +22,19 @@
 //      through unmodified from engine.suggest() -- never re-worded or
 //      strengthened here.
 
+import { attachGeocoding } from "./geocode.js";
+
+// Entity types that represent a real-world physical location and are
+// therefore worth geocoding for the "Geographic Intelligence" map.
+// KYC_ADDRESS / TOWER_LOCATION come from recorded legal-request
+// responses (see caseController.recordLegalResponse); SIM_OWNER
+// addresses use the same bucket if that entity type is ever recorded.
+// ADDRESS covers any place mentioned directly in the complaint/evidence
+// text itself (see EVIDENCE_ENTITY_MAP below) -- without it, the map
+// stayed empty for every case until a bank/telecom legal response came
+// back, even when the complaint text already named a real place.
+const LOCATION_ENTITY_TYPES = ["KYC_ADDRESS", "TOWER_LOCATION", "ADDRESS"];
+
 // ---------------------------------------------------------------------
 // ENTITY EXTRACTION (deterministic)
 // ---------------------------------------------------------------------
@@ -39,9 +52,17 @@ const EVIDENCE_ENTITY_MAP = [
   ["aadhaar_numbers", "AADHAAR", "Aadhaar number"],
   ["vehicle_numbers", "VEHICLE", "Vehicle number"],
   ["platforms", "PLATFORM", "Platform"],
+  // Places named directly in the complaint/evidence text (shop fronts,
+  // meeting spots, delivery addresses, etc). This is what feeds the
+  // Geographic Intelligence map for cases that haven't had a bank/telecom
+  // legal response recorded yet -- previously ANY address in the
+  // complaint text was silently dropped because no field here captured
+  // it, so the map only ever lit up after a legal response came back.
+  ["addresses", "ADDRESS", "Address mentioned"],
+  ["locations", "ADDRESS", "Location mentioned"],
 ];
 
-function extractEntitiesAndKnown(caseDoc) {
+async function extractEntitiesAndKnown(caseDoc) {
   const entities = [];
   const seen = new Set();
 
@@ -110,6 +131,12 @@ function extractEntitiesAndKnown(caseDoc) {
       });
     }
   }
+
+  // Best-effort geocode any address/location entities so the Geographic
+  // Intelligence panel can plot real pins. Never throws -- a geocoding
+  // outage just means those entities come back without lat/lng, same as
+  // if the address hadn't resolved.
+  await attachGeocoding(entities, LOCATION_ENTITY_TYPES);
 
   return { entities, known, totalAmount };
 }
@@ -458,8 +485,8 @@ function computeDelta(prev, curr) {
 // PUBLIC: assemble one full investigation version
 // ---------------------------------------------------------------------
 
-export function assembleInvestigationVersion(caseDoc, suggestion, trigger) {
-  const { entities, known } = extractEntitiesAndKnown(caseDoc);
+export async function assembleInvestigationVersion(caseDoc, suggestion, trigger) {
+  const { entities, known } = await extractEntitiesAndKnown(caseDoc);
   const relationships = extractRelationships(caseDoc, entities);
   const missing = buildMissing(entities, caseDoc, suggestion.gaps);
   const recommendations = buildRecommendations(missing, suggestion);

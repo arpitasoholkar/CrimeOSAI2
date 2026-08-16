@@ -25,7 +25,21 @@ import { LegalSectionLookup, verifySectionMentions } from "./legalLookup.js";
 dotenv.config();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const reasoningModel = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+
+// FIX: "gemini-2.5-flash-lite" was retired by Google ("no longer available
+// to new users") and started 404'ing on every call. Pinned here to
+// "gemini-2.5-flash", which is a currently-supported model. Both model
+// names are overridable via .env (GEMINI_MODEL / GEMINI_FALLBACK_MODEL) if
+// Google retires this one too in the future -- no code change needed then,
+// just update .env.
+const PRIMARY_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+// Fallback used only if the primary model's retries are exhausted on a
+// 429/503. Also pinned to a currently-supported model (not a "-lite" or
+// "-latest" alias, both of which have bitten this project before).
+const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || "gemini-2.0-flash";
+
+const reasoningModel = genAI.getGenerativeModel({ model: PRIMARY_MODEL });
+const fallbackReasoningModel = genAI.getGenerativeModel({ model: FALLBACK_MODEL });
 
 const SYSTEM_PROMPT = `You are an investigation-support assistant for police officers in India, \
 working strictly from the SOP excerpts provided to you. You are NOT a substitute for the \
@@ -101,28 +115,28 @@ function scoreConfidence(retrievedResults, llmConfidence) {
 }
 
 export class InvestigationEngine {
-constructor() {
-  this.retriever = new SOPRetriever();
-  this.legalLookup = new LegalSectionLookup();
+  constructor() {
+    this.retriever = new SOPRetriever();
+    this.legalLookup = new LegalSectionLookup();
 
-  this._ready = false;
-  this._initPromise = null;
-}
-
-async init() {
-  // Already initialized
-  if (this._ready) return;
-
-  // First request starts the initialization
-  if (!this._initPromise) {
-    this._initPromise = this.retriever.buildIndex().then(() => {
-      this._ready = true;
-    });
+    this._ready = false;
+    this._initPromise = null;
   }
 
-  // Everyone else waits for the same initialization
-  await this._initPromise;
-}
+  async init() {
+    // Already initialized
+    if (this._ready) return;
+
+    // First request starts the initialization
+    if (!this._initPromise) {
+      this._initPromise = this.retriever.buildIndex().then(() => {
+        this._ready = true;
+      });
+    }
+
+    // Everyone else waits for the same initialization
+    await this._initPromise;
+  }
 
   /**
    * @param {string} complaintText
@@ -134,24 +148,51 @@ async init() {
     const retrievedResults = await this.retriever.search(complaintText, topK);
     const sopContext = buildSopContext(retrievedResults);
 
-    async function generateWithRetry(request, maxRetries = 3) {
+    // Pulls the server-suggested wait time out of the error payload (e.g. a 429
+    // quota error telling us "retryDelay": "28s") instead of guessing with a
+    // fixed schedule that's often far too short for real quota resets.
+    function extractRetryDelayMs(err) {
+      const detail = err?.errorDetails?.find(
+        (d) => d["@type"] === "type.googleapis.com/google.rpc.RetryInfo"
+      );
+      const raw = detail?.retryDelay; // e.g. "28s"
+      if (!raw) return null;
+      const seconds = parseFloat(raw);
+      return Number.isFinite(seconds) ? seconds * 1000 : null;
+    }
+
+    async function generateWithRetry(model, request, maxRetries = 3) {
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-          return await reasoningModel.generateContent(request);
+          return await model.generateContent(request);
         } catch (err) {
           const isRetryable = err.status === 503 || err.status === 429;
           if (!isRetryable || attempt === maxRetries) throw err;
-          const waitMs = attempt * 2000; // 2s, 4s, 6s
-          console.log(`Gemini returned ${err.status}, retrying in ${waitMs / 1000}s (attempt ${attempt}/${maxRetries})...`);
+          const serverDelay = extractRetryDelayMs(err);
+          const waitMs = serverDelay ?? attempt * 2000; // fall back to 2s, 4s, 6s if no hint given
+          console.log(
+            `Gemini returned ${err.status}, retrying in ${(waitMs / 1000).toFixed(1)}s (attempt ${attempt}/${maxRetries})...`
+          );
           await new Promise((resolve) => setTimeout(resolve, waitMs));
         }
       }
     }
 
-    const result = await generateWithRetry({
-      contents: [{ role: "user", parts: [{ text: buildUserPrompt(complaintText, sopContext) }] }],
-      systemInstruction: SYSTEM_PROMPT,
-    });
+    let result;
+    try {
+      result = await generateWithRetry(reasoningModel, {
+        contents: [{ role: "user", parts: [{ text: buildUserPrompt(complaintText, sopContext) }] }],
+        systemInstruction: SYSTEM_PROMPT,
+      });
+    } catch (primaryErr) {
+      const isRetryable = primaryErr.status === 503 || primaryErr.status === 429;
+      if (!isRetryable) throw primaryErr;
+      console.log(`Primary model (${PRIMARY_MODEL}) exhausted retries on ${primaryErr.status}, falling back to ${FALLBACK_MODEL}...`);
+      result = await generateWithRetry(fallbackReasoningModel, {
+        contents: [{ role: "user", parts: [{ text: buildUserPrompt(complaintText, sopContext) }] }],
+        systemInstruction: SYSTEM_PROMPT,
+      });
+    }
 
     let rawText = result.response.text().trim();
     rawText = rawText.replace(/^```json/, "").replace(/^```/, "").replace(/```$/, "").trim();

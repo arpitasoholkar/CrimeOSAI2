@@ -1,6 +1,6 @@
 .row {
   display: grid;
-  grid-template-columns: minmax(160px, 1.4fr) minmax(140px, 1fr) minmax(120px, 1fr) minmax(90px, 0.8fr) 40px;
+  grid-template-columns: minmax(160px, 1.4fr) minmax(140px, 1fr) minmax(120px, 1fr) minmax(90px, 0.8fr) 148px;
   align-items: center;
   gap: 12px;
   padding: 14px 12px;
@@ -157,6 +157,63 @@
   border-color: var(--accent);
 }
 
+.requestBtn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  justify-self: end;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.requestBtn:hover:not(:disabled) {
+  background: var(--accent);
+  color: #fff;
+}
+
+.requestBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pendingLabel {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  justify-self: end;
+}
+
+.rejectedLabel {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  justify-self: end;
+}
+
 @media (max-width: 860px) {
   .row {
     grid-template-columns: 1fr 1fr;
@@ -181,7 +238,10 @@
   .updatedCol {
     grid-area: updated;
   }
-  .openBtn {
+  .openBtn,
+  .requestBtn,
+  .pendingLabel,
+  .rejectedLabel {
     grid-area: open;
   }
 }

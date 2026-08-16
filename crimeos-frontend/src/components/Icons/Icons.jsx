@@ -350,6 +350,14 @@ export const EyeIcon = (p) => (
 )
 
 // Small shield-with-lock used as a "secure/authorized" footer marker.
+export const ArchiveIcon = (p) => (
+  <svg {...base} {...p}>
+    <rect x="3" y="4" width="18" height="4" rx="1" />
+    <path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8" />
+    <path d="M10 13h4" />
+  </svg>
+)
+
 export const ShieldLockIcon = (p) => (
   <svg {...base} {...p}>
     <path d="M12 2 4 5v6c0 5 3.4 8.7 8 11 4.6-2.3 8-6 8-11V5l-8-3Z" />

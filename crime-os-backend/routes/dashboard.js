@@ -1,5 +1,6 @@
 import express from "express";
 import Case from "./cases/caseModel.js";
+import { requireAuth } from "../lib/auth.js";
 
 const router = express.Router();
 
@@ -124,19 +125,64 @@ router.get("/stats", async (req, res) => {
 
 // =========================================================
 // GET /api/cases?limit=4
+// GET /api/cases?page=1&limit=20&status=pending&q=CASE-2026
 // =========================================================
+//
+// Backward compatible: a bare `?limit=4` call (used by the Dashboard's
+// "Recent Investigations" panel) still just returns a plain array, capped
+// at 100, most-recently-updated first.
+//
+// When `page` is supplied (used by the full Cases page) the route instead
+// paginates and returns `{ cases, total, page, pageCount }` so the frontend
+// can render "showing X of Y" / page controls instead of silently truncating
+// the list at 100 records.
+//
+// `status` filters by the same dashboard bucket used for the stat cards
+// (pending | underInvestigation | resolved), and `q` does a case-insensitive
+// match against case_id and title.
 
-router.get("/cases", async (req, res) => {
+const STATUS_BUCKET_VALUES = {
+  pending: PENDING_STATUSES,
+  underInvestigation: INVESTIGATION_STATUSES,
+  resolved: RESOLVED_STATUSES,
+};
+
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+router.get("/cases", requireAuth, async (req, res) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
+    const { status, q } = req.query;
+    const isPaginated = req.query.page !== undefined;
+    const username = req.user.username;
 
-    const cases = await Case.find({})
-      .sort({ updatedAt: -1 })
-      .limit(limit)
-      .lean();
+    const filter = {};
 
-    const shaped = cases.map((c) => {
+    if (status && STATUS_BUCKET_VALUES[status]) {
+      filter.status = { $in: STATUS_BUCKET_VALUES[status] };
+    }
+
+    if (q && q.trim()) {
+      const re = new RegExp(escapeRegExp(q.trim()), "i");
+      filter.$or = [{ case_id: re }, { title: re }];
+    }
+
+    const shape = (c) => {
       const chips = evidenceChips(c);
+      const isInvestigator = (c.investigators || []).includes(username);
+      // Most recent request this user made on this case (by requestedAt),
+      // so we know their *current* status -- not just whether one happens
+      // to still be pending. Once a request is rejected we want the
+      // frontend to show that instead of quietly falling back to a fresh
+      // "Request Access" button.
+      const ownRequests = !isInvestigator
+        ? (c.accessRequests || []).filter((r) => r.requesterUsername === username)
+        : [];
+      const latestOwnRequest = ownRequests.length
+        ? ownRequests.reduce((a, b) => (new Date(b.requestedAt) > new Date(a.requestedAt) ? b : a))
+        : null;
+      const myAccessRequestStatus = latestOwnRequest ? latestOwnRequest.status : null;
       return {
         id: c.case_id,
         title: c.title || "Untitled Case",
@@ -145,10 +191,43 @@ router.get("/cases", async (req, res) => {
         extraEvidence: Math.max(0, chips.length - 3),
         risk: riskLabel(c.severity),
         updated: timeAgo(c.updatedAt),
+        isInvestigator,
+        hasPendingRequest: myAccessRequestStatus === "pending",
+        myAccessRequestStatus,
       };
-    });
+    };
 
-    res.json(shaped);
+    if (!isPaginated) {
+      // Legacy behaviour for the Dashboard widget.
+      const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
+
+      const cases = await Case.find(filter)
+        .sort({ updatedAt: -1 })
+        .limit(limit)
+        .lean();
+
+      return res.json(cases.map(shape));
+    }
+
+    // Full, paginated Cases page.
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+
+    const [total, cases] = await Promise.all([
+      Case.countDocuments(filter),
+      Case.find(filter)
+        .sort({ updatedAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
+    ]);
+
+    res.json({
+      cases: cases.map(shape),
+      total,
+      page,
+      pageCount: Math.max(Math.ceil(total / limit), 1),
+    });
   } catch (err) {
     console.error("[dashboard] Failed to load cases:", err);
     res.status(500).json({ error: "Failed to load cases" });

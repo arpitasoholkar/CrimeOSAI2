@@ -6,9 +6,11 @@ import {
   FileTextIcon, ImageIcon, AudioIcon, SparklesIcon, ChevronRightIcon,
   AlertTriangleIcon, TrendUpIcon, TrendDownIcon,
   HelpCircleIcon, MapPinIcon, ScaleIcon, HistoryIcon, RefreshIcon,
-  CheckIcon, XCircleIcon, LinkIcon, UploadCloudIcon,
+  CheckIcon, XCircleIcon, LinkIcon, UploadCloudIcon, LockIcon,
 } from '../components/Icons/Icons'
 import EntityGraph from '../components/CaseIntelligence/EntityGraph'
+import LocationMap from '../components/CaseIntelligence/LocationMap'
+import EyeLoader from '../components/EyeLoader/EyeLoader'
 import styles from './CaseDetails.module.css'
 
 const EVIDENCE_ICON = { pdf: FileTextIcon, image: ImageIcon, audio: AudioIcon, text: FileTextIcon }
@@ -58,36 +60,68 @@ export default function CaseDetails() {
   const navigate = useNavigate()
 
   const [caseDoc, setCaseDoc] = useState(null)
+  const [isInvestigator, setIsInvestigator] = useState(true)
+  const [isArchivedView, setIsArchivedView] = useState(false)
+  const [requestStatus, setRequestStatus] = useState(null)
   const [timeline, setTimeline] = useState([])
   const [similarCases, setSimilarCases] = useState({ status: 'loading', data: [] })
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [loadingStartedAt] = useState(() => Date.now())
   const [reinvestigating, setReinvestigating] = useState(false)
   const [actionError, setActionError] = useState(null)
   const [compareVersion, setCompareVersion] = useState(null)
+  const [requesting, setRequesting] = useState(false)
+  const [showCompleteModal, setShowCompleteModal] = useState(false)
 
   const loadCase = useCallback(() => {
-    return apiBackend.get(`/cases/${caseId}`).then((res) => setCaseDoc(res.data.case))
+    return apiBackend.get(`/cases/${caseId}`).then((res) => {
+      setCaseDoc(res.data.case)
+      setIsInvestigator(res.data.isInvestigator !== false)
+      setIsArchivedView(!!res.data.isArchivedView)
+      setRequestStatus(res.data.myAccessRequestStatus ?? null)
+    })
   }, [caseId])
 
   useEffect(() => {
     setLoading(true)
     setError(null)
-    Promise.all([
-      loadCase(),
-      apiBackend.get(`/cases/${caseId}/timeline`).then((res) => setTimeline(res.data.timeline || [])).catch(() => setTimeline([])),
-    ])
+    loadCase()
       .catch((err) => setError(err.response?.data?.message || 'Failed to load this case.'))
-      .finally(() => setLoading(false))
+      .finally(() => {
+        const elapsed = Date.now() - loadingStartedAt
+        const remaining = Math.max(0, 1200 - elapsed)
+        window.setTimeout(() => setLoading(false), remaining)
+      })
   }, [caseId, loadCase])
 
+  const canViewFullCase = isInvestigator || isArchivedView
+
   useEffect(() => {
+    if (!canViewFullCase) return
+    apiBackend.get(`/cases/${caseId}/timeline`).then((res) => setTimeline(res.data.timeline || [])).catch(() => setTimeline([]))
+  }, [caseId, canViewFullCase])
+
+  useEffect(() => {
+    if (!canViewFullCase) return
     setSimilarCases({ status: 'loading', data: [] })
     apiBrain
       .get(`/api/case/${caseId}/similar`)
       .then((res) => setSimilarCases({ status: 'ok', data: res.data.similarCases || [] }))
       .catch(() => setSimilarCases({ status: 'error', data: [] }))
-  }, [caseId])
+  }, [caseId, canViewFullCase])
+
+  const handleRequestAccess = async () => {
+    setRequesting(true)
+    try {
+      await apiBackend.post(`/cases/${caseId}/access-request`)
+      setRequestStatus('pending')
+    } catch (err) {
+      setActionError(err.response?.data?.message || 'Could not send the access request.')
+    } finally {
+      setRequesting(false)
+    }
+  }
 
   const versions = caseDoc?.investigationVersions || []
   const latest = versions.length ? versions[versions.length - 1] : null
@@ -106,9 +140,60 @@ export default function CaseDetails() {
     }
   }
 
-  if (loading) return <p className={styles.state}>Loading investigation…</p>
+  if (loading) return <EyeLoader label="Loading investigation…" />
   if (error) return <p className={styles.stateError}>{error}</p>
   if (!caseDoc) return null
+
+  if (!isInvestigator && !isArchivedView) {
+    const risk = caseDoc.severity ? RISK_META[caseDoc.severity] : null
+    return (
+      <motion.div
+        className={styles.wrap}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <div className={styles.header}>
+          <div>
+            <p className={styles.caseId}>{caseDoc.case_id}</p>
+            <h2 className={styles.title}>{caseDoc.title || 'Untitled Case'}</h2>
+            <div className={styles.headerMeta}>
+              <span className={styles.statusBadge}>{STATUS_LABEL[caseDoc.status] || caseDoc.status}</span>
+              {risk && (
+                <span className={styles.riskBadge} style={{ color: risk.color, background: risk.bg }}>
+                  {risk.label} risk
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <section className={styles.section} style={{ textAlign: 'center', padding: '48px 20px' }}>
+          <LockIcon width={28} height={28} style={{ opacity: 0.6, marginBottom: 12 }} />
+          <p className={styles.title} style={{ fontSize: 16 }}>You don't have access to this case</p>
+          <p className={styles.empty} style={{ marginBottom: 18 }}>
+            Request access from the lead investigator to view evidence, findings, and the full case record.
+          </p>
+          {actionError && <p className={styles.actionError} style={{ marginBottom: 12 }}>{actionError}</p>}
+          {requestStatus === 'pending' ? (
+            <span className={styles.statusBadge}>Access Requested</span>
+          ) : requestStatus === 'rejected' ? (
+            <span className={styles.statusBadge} style={{ color: 'var(--danger)', background: 'var(--danger-soft)' }}>
+              Access Rejected
+            </span>
+          ) : (
+            <button type="button" className={styles.secondaryBtn} disabled={requesting} onClick={handleRequestAccess}>
+              {requesting ? 'Requesting…' : 'Request Access'}
+            </button>
+          )}
+        </section>
+
+        <button type="button" className={styles.backBtn} onClick={() => navigate('/')}>
+          ← Back to Dashboard
+        </button>
+      </motion.div>
+    )
+  }
 
   return (
     <motion.div
@@ -120,12 +205,30 @@ export default function CaseDetails() {
       <CaseHeader
         caseDoc={caseDoc}
         latest={latest}
+        isInvestigator={isInvestigator}
+        isArchivedView={isArchivedView}
         onAddEvidence={() => navigate(`/new-case?case_id=${caseDoc.case_id}`)}
         onReinvestigate={handleReinvestigate}
         reinvestigating={reinvestigating}
+        onMarkComplete={() => setShowCompleteModal(true)}
       />
 
       {actionError && <p className={styles.actionError}>{actionError}</p>}
+
+      {caseDoc.isCompleted && caseDoc.resolution && (
+        <ResolutionPanel resolution={caseDoc.resolution} />
+      )}
+
+      {showCompleteModal && (
+        <CompleteCaseModal
+          caseId={caseId}
+          onClose={() => setShowCompleteModal(false)}
+          onCompleted={async () => {
+            setShowCompleteModal(false)
+            await loadCase()
+          }}
+        />
+      )}
 
       <CaseIntelligencePanel caseDoc={caseDoc} latest={latest} previous={previous} />
 
@@ -137,6 +240,7 @@ export default function CaseDetails() {
         caseId={caseId}
         latest={latest}
         onChanged={loadCase}
+        readOnly={caseDoc.isCompleted}
       />
 
       <section className={styles.section}>
@@ -148,7 +252,7 @@ export default function CaseDetails() {
 
       <EvidenceIntelligencePanel caseDoc={caseDoc} latest={latest} />
 
-      <LegalIntelligencePanel caseId={caseId} caseDoc={caseDoc} onChanged={loadCase} />
+      <LegalIntelligencePanel caseId={caseId} caseDoc={caseDoc} onChanged={loadCase} readOnly={caseDoc.isCompleted} />
 
       <TimelinePanel timeline={timeline} />
 
@@ -173,30 +277,223 @@ export default function CaseDetails() {
 // 1. CASE HEADER
 // =========================================================
 
-function CaseHeader({ caseDoc, latest, onAddEvidence, onReinvestigate, reinvestigating }) {
+function CaseHeader({ caseDoc, latest, isInvestigator, isArchivedView, onAddEvidence, onReinvestigate, reinvestigating, onMarkComplete }) {
   const risk = latest?.risk ? RISK_META[latest.risk] : null
+  const isCompleted = !!caseDoc.isCompleted
+  // Archived viewers, and any case that's already been marked complete,
+  // are read-only -- no evidence uploads, re-investigation, or closing
+  // it a second time.
+  const canEdit = isInvestigator && !isArchivedView && !isCompleted
+
   return (
     <div className={styles.header}>
       <div>
         <p className={styles.caseId}>{caseDoc.case_id}</p>
         <h2 className={styles.title}>{caseDoc.title || 'Untitled Case'}</h2>
         <div className={styles.headerMeta}>
-          <span className={styles.statusBadge}>{STATUS_LABEL[caseDoc.status] || caseDoc.status}</span>
+          <span className={styles.statusBadge}>
+            {isCompleted ? 'Case Completed' : STATUS_LABEL[caseDoc.status] || caseDoc.status}
+          </span>
           {risk && (
             <span className={styles.riskBadge} style={{ color: risk.color, background: risk.bg }}>
               {risk.label} risk
             </span>
           )}
           <span className={styles.metaText}>Updated {fmtDate(caseDoc.updatedAt)}</span>
+          {isArchivedView && <span className={styles.metaText}>· Viewing from Cases Archive (read-only)</span>}
         </div>
       </div>
-      <div className={styles.headerActions}>
-        <button type="button" className={styles.secondaryBtn} onClick={onAddEvidence}>
-          <UploadCloudIcon width={14} height={14} /> Add Evidence
-        </button>
-        <button type="button" className={styles.primaryBtn} onClick={onReinvestigate} disabled={reinvestigating}>
-          <RefreshIcon width={14} height={14} /> {reinvestigating ? 'Re-investigating…' : 'Re-investigate'}
-        </button>
+      {canEdit && (
+        <div className={styles.headerActions}>
+          <button type="button" className={styles.secondaryBtn} onClick={onAddEvidence}>
+            <UploadCloudIcon width={14} height={14} /> Add Evidence
+          </button>
+          <button type="button" className={styles.primaryBtn} onClick={onReinvestigate} disabled={reinvestigating}>
+            <RefreshIcon width={14} height={14} /> {reinvestigating ? 'Re-investigating…' : 'Re-investigate'}
+          </button>
+          <button type="button" className={styles.secondaryBtn} onClick={onMarkComplete}>
+            <CheckIcon width={14} height={14} /> Mark Case Complete
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// =========================================================
+// 1b. CASE RESOLUTION (shown once the case is marked complete)
+// =========================================================
+
+const OUTCOME_LABEL = {
+  culprit_identified: 'Culprit Identified',
+  culprit_arrested: 'Culprit Arrested',
+  money_recovered: 'Money Recovered',
+  false_complaint: 'False Complaint',
+  withdrawn_by_complainant: 'Withdrawn by Complainant',
+  unable_to_resolve: 'Unable to Resolve',
+  other: 'Other',
+}
+
+function ResolutionPanel({ resolution }) {
+  return (
+    <section className={styles.section} style={{ borderColor: 'var(--success)' }}>
+      <h3 className={styles.sectionTitle}><CheckIcon width={15} height={15} color="var(--success)" /> Case Resolution</h3>
+
+      <div className={styles.intelGrid}>
+        <div className={styles.intelStat}>
+          <p className={styles.intelLabel}>Outcome</p>
+          <p className={styles.intelValue}>{OUTCOME_LABEL[resolution.outcome] || resolution.outcome}</p>
+        </div>
+        {resolution.amountRecovered != null && (
+          <div className={styles.intelStat}>
+            <p className={styles.intelLabel}>Amount recovered</p>
+            <p className={styles.intelValue}>₹{Number(resolution.amountRecovered).toLocaleString('en-IN')}</p>
+          </div>
+        )}
+        <div className={styles.intelStat}>
+          <p className={styles.intelLabel}>Closed by</p>
+          <p className={styles.intelValue}>{resolution.closedBy}</p>
+        </div>
+        <div className={styles.intelStat}>
+          <p className={styles.intelLabel}>Closed on</p>
+          <p className={styles.intelValue}>{fmtDate(resolution.closedAt)}</p>
+        </div>
+      </div>
+
+      <div className={styles.assessmentBox}>
+        <p className={styles.assessmentLabel}>How the case concluded</p>
+        <p className={styles.assessmentText}>{resolution.summary}</p>
+      </div>
+
+      {resolution.keyEvidence && (
+        <div className={styles.assessmentBox}>
+          <p className={styles.assessmentLabel}>Key evidence</p>
+          <p className={styles.assessmentText}>{resolution.keyEvidence}</p>
+        </div>
+      )}
+
+      {resolution.victimOutcome && (
+        <div className={styles.assessmentBox}>
+          <p className={styles.assessmentLabel}>What happened to the victim</p>
+          <p className={styles.assessmentText}>{resolution.victimOutcome}</p>
+        </div>
+      )}
+
+      {resolution.actionsTaken && (
+        <div className={styles.assessmentBox}>
+          <p className={styles.assessmentLabel}>Actions taken</p>
+          <p className={styles.assessmentText}>{resolution.actionsTaken}</p>
+        </div>
+      )}
+    </section>
+  )
+}
+
+// =========================================================
+// 1c. MARK CASE COMPLETE MODAL
+// =========================================================
+
+function CompleteCaseModal({ caseId, onClose, onCompleted }) {
+  const [form, setForm] = useState({
+    outcome: 'culprit_identified',
+    summary: '',
+    keyEvidence: '',
+    victimOutcome: '',
+    amountRecovered: '',
+    actionsTaken: '',
+  })
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState(null)
+
+  const set = (field) => (e) => setForm({ ...form, [field]: e.target.value })
+
+  const submit = async () => {
+    if (!form.summary.trim()) {
+      setErr('Please describe how the case concluded.')
+      return
+    }
+    setBusy(true)
+    setErr(null)
+    try {
+      await apiBackend.post(`/cases/${caseId}/complete`, form)
+      await onCompleted()
+    } catch (e) {
+      setErr(e.response?.data?.message || 'Failed to mark the case complete.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+        <h3 className={styles.sectionTitle}>Mark Case Complete</h3>
+        <p className={styles.metaText} style={{ marginBottom: 12 }}>
+          This closes the case for every investigator and adds it to the Cases Archive, visible to all investigators.
+        </p>
+
+        {err && <p className={styles.actionError}>{err}</p>}
+
+        <label className={styles.subHead}>Outcome</label>
+        <select className={styles.input} value={form.outcome} onChange={set('outcome')}>
+          {Object.entries(OUTCOME_LABEL).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
+
+        <label className={styles.subHead}>How did it conclude?</label>
+        <textarea
+          className={styles.input}
+          rows={3}
+          placeholder="Summarize how the investigation concluded…"
+          value={form.summary}
+          onChange={set('summary')}
+        />
+
+        <label className={styles.subHead}>Key evidence</label>
+        <textarea
+          className={styles.input}
+          rows={2}
+          placeholder="What evidence supported this outcome?"
+          value={form.keyEvidence}
+          onChange={set('keyEvidence')}
+        />
+
+        <label className={styles.subHead}>What happened to the victim?</label>
+        <textarea
+          className={styles.input}
+          rows={2}
+          placeholder="Compensation, recovery, welfare follow-up, etc."
+          value={form.victimOutcome}
+          onChange={set('victimOutcome')}
+        />
+
+        <label className={styles.subHead}>Amount recovered (optional)</label>
+        <input
+          className={styles.input}
+          type="number"
+          placeholder="₹"
+          value={form.amountRecovered}
+          onChange={set('amountRecovered')}
+        />
+
+        <label className={styles.subHead}>Actions taken (optional)</label>
+        <textarea
+          className={styles.input}
+          rows={2}
+          placeholder="Arrests made, sections invoked, follow-up steps…"
+          value={form.actionsTaken}
+          onChange={set('actionsTaken')}
+        />
+
+        <div className={styles.recActions} style={{ marginTop: 8 }}>
+          <button type="button" className={styles.secondaryBtn} onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
+          <button type="button" className={styles.primaryBtn} onClick={submit} disabled={busy}>
+            {busy ? 'Saving…' : 'Mark Complete'}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -438,7 +735,7 @@ function GapsPanel({ latest }) {
 // 5. NEXT BEST ACTION
 // =========================================================
 
-function NextBestActionPanel({ caseId, latest, onChanged }) {
+function NextBestActionPanel({ caseId, latest, onChanged, readOnly }) {
   const [busyId, setBusyId] = useState(null)
   const [decidedBy, setDecidedBy] = useState('')
   const [err, setErr] = useState(null)
@@ -467,6 +764,15 @@ function NextBestActionPanel({ caseId, latest, onChanged }) {
 
   if (!latest) return null
 
+  if (readOnly) {
+    return (
+      <section className={styles.section}>
+        <h3 className={styles.sectionTitle}>⭐ Next Best Action</h3>
+        <p className={styles.empty}>This case is closed — recommendations are no longer actionable.</p>
+      </section>
+    )
+  }
+
   return (
     <section className={styles.section}>
       <h3 className={styles.sectionTitle}>⭐ Next Best Action</h3>
@@ -486,7 +792,7 @@ function NextBestActionPanel({ caseId, latest, onChanged }) {
           {pending.map((rec) => {
             const urgency = URGENCY_META[rec.urgency] || URGENCY_META.low
             return (
-              <div key={rec.id} className={styles.recCard}>
+              <div key={`${rec.id}-${rec.action}-${rec.urgency}`} className={styles.recCard}>
                 <div className={styles.recHead}>
                   <p className={styles.recAction}>{rec.action.toUpperCase()}</p>
                   <span className={styles.urgencyBadge} style={{ color: urgency.color }}>{urgency.label}</span>
@@ -523,17 +829,36 @@ function NextBestActionPanel({ caseId, latest, onChanged }) {
 
 function GeoIntelligencePanel({ latest }) {
   const located = (latest?.entities || []).filter((e) => e.lat != null && e.lng != null)
+
+  const markers = located.map((e, i) => ({
+    id: `${e.type}-${i}`,
+    label: e.type.replace(/_/g, ' '),
+    lat: e.lat,
+    lng: e.lng,
+    type: e.type,
+    detail: e.geocodedDisplayName || e.value,
+  }))
+
   return (
     <section className={styles.section}>
       <h3 className={styles.sectionTitle}><MapPinIcon width={15} height={15} /> Geographic Intelligence</h3>
       {located.length ? (
-        <ul className={styles.gapsList}>
-          {located.map((e, i) => (
-            <li key={i}>{e.type.replace(/_/g, ' ')}: {e.value} ({e.lat}, {e.lng})</li>
-          ))}
-        </ul>
+        <div className={styles.geoLayout}>
+          <LocationMap markers={markers} />
+          <ul className={styles.geoList}>
+            {located.map((e, i) => (
+              <li key={i} className={styles.geoItem}>
+                <span className={styles.geoDot} />
+                <div>
+                  <p className={styles.geoLabel}>{e.type.replace(/_/g, ' ')} <span className={styles.metaText}>· {e.value}</span></p>
+                  <p className={styles.metaText}>{e.geocodedDisplayName || `${e.lat.toFixed(4)}, ${e.lng.toFixed(4)}`}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : (
-        <p className={styles.empty}>No geographic intelligence available for this case yet.</p>
+        <p className={styles.empty}>No geographic intelligence available for this case yet. Addresses mentioned in the complaint, or recorded from bank/telecom legal responses (KYC address, tower location), are geocoded automatically once the AI (re-)investigates the case.</p>
       )}
     </section>
   )
@@ -598,7 +923,7 @@ function EvidenceIntelligencePanel({ caseDoc, latest }) {
 // 10. LEGAL INTELLIGENCE
 // =========================================================
 
-function LegalIntelligencePanel({ caseId, caseDoc, onChanged }) {
+function LegalIntelligencePanel({ caseId, caseDoc, onChanged, readOnly }) {
   const requests = caseDoc.requests || []
   const latest = (caseDoc.investigationVersions || []).slice(-1)[0]
 
@@ -624,7 +949,7 @@ function LegalIntelligencePanel({ caseId, caseDoc, onChanged }) {
       {requests.length ? (
         <div className={styles.requestList}>
           {requests.map((req) => (
-            <LegalRequestCard key={req.requestId} caseId={caseId} req={req} onChanged={onChanged} />
+            <LegalRequestCard key={req.requestId} caseId={caseId} req={req} onChanged={onChanged} readOnly={readOnly} />
           ))}
         </div>
       ) : (
@@ -634,7 +959,7 @@ function LegalIntelligencePanel({ caseId, caseDoc, onChanged }) {
   )
 }
 
-function LegalRequestCard({ caseId, req, onChanged }) {
+function LegalRequestCard({ caseId, req, onChanged, readOnly }) {
   const [expanded, setExpanded] = useState(false)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
@@ -679,14 +1004,18 @@ function LegalRequestCard({ caseId, req, onChanged }) {
 
           <input className={styles.input} placeholder="Officer name / badge ID" value={actor} onChange={(e) => setActor(e.target.value)} />
 
-          {req.status === 'draft' && (
+          {readOnly && (
+            <p className={styles.metaText}>This case is closed — legal request actions are no longer available.</p>
+          )}
+
+          {!readOnly && req.status === 'draft' && (
             <button type="button" className={styles.primaryBtn} disabled={busy || !actor.trim()}
               onClick={() => run(() => apiBackend.post(`/cases/${caseId}/request/${req.requestId}/approve`, { approvedBy: actor }))}>
               Approve Request
             </button>
           )}
 
-          {req.status === 'approved' && (
+          {!readOnly && req.status === 'approved' && (
             <>
               <input className={styles.input} placeholder="Provider email" value={providerEmail} onChange={(e) => setProviderEmail(e.target.value)} />
               <button type="button" className={styles.primaryBtn} disabled={busy || !providerEmail.trim()}
@@ -696,7 +1025,7 @@ function LegalRequestCard({ caseId, req, onChanged }) {
             </>
           )}
 
-          {(req.status === 'sent' || req.status === 'overdue') && (
+          {!readOnly && (req.status === 'sent' || req.status === 'overdue') && (
             <div className={styles.responseForm}>
               <p className={styles.subHead}>Record provider response</p>
               {req.requestType === 'bank' ? (
@@ -802,7 +1131,7 @@ function HistoryPanel({ versions }) {
       <h3 className={styles.sectionTitle}><HistoryIcon width={15} height={15} /> AI Investigation History</h3>
       <div className={styles.historyList}>
         {[...versions].reverse().map((v, i) => (
-          <div key={v.version} className={styles.historyItem}>
+          <div key={`${v.version}-${i}`} className={styles.historyItem}>
             <div className={styles.historyDot} />
             <div>
               <p className={styles.historyTitle}>

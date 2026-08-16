@@ -3,6 +3,7 @@ import multer from "multer";
 import { ingest, IngestError } from "../lib/ingest.js";
 import { saveEvidence } from "../lib/caseService.js";
 import { triggerReinvestigation } from "../lib/reinvestigate.js";
+import { requireAuth } from "../lib/auth.js";
 
 const router = Router();
 
@@ -15,16 +16,21 @@ const upload = multer({
  * POST /ingest
  *
  * Supports:
- * 1. JSON body: { text: "..." }
- * 2. PDF upload
- * 3. Image upload
- * 4. Audio upload
+ * 1. JSON body: { text: "...", caseName: "..." }
+ * 2. PDF upload (+ caseName field)
+ * 3. Image upload (+ caseName field)
+ * 4. Audio upload (+ caseName field)
  *
  * Optional:
- * case_id -> if provided, evidence is added to an existing case.
- *            otherwise a new case is created.
+ * case_id  -> if provided, evidence is added to an existing case.
+ *             otherwise a new case is created.
+ * caseName -> only used when creating a new case (case_id omitted).
+ *
+ * Requires a logged-in officer -- that officer becomes the new case's
+ * lead investigator (or is checked against the existing case's
+ * investigators, though evidence upload isn't access-gated itself yet).
  */
-router.post("/", upload.single("file"), async (req, res) => {
+router.post("/", requireAuth, upload.single("file"), async (req, res) => {
   try {
     // -----------------------------
     // Extract complaint information
@@ -51,6 +57,8 @@ router.post("/", upload.single("file"), async (req, res) => {
     const savedCase = await saveEvidence({
       caseId: req.body.case_id,
       evidence: result,
+      caseName: req.body.caseName,
+      user: req.user,
     });
 
     // -----------------------------

@@ -2,15 +2,18 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { apiBackend } from '../api/api'
-import { UploadCloudIcon, FileTextIcon, CheckCircleIcon } from '../components/Icons/Icons'
+import { useAuth } from '../context/AuthContext'
+import { UploadCloudIcon, FileTextIcon, CheckCircleIcon, UserIcon } from '../components/Icons/Icons'
 import styles from './NewCase.module.css'
 
 export default function NewCase() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [searchParams] = useSearchParams()
   const [mode, setMode] = useState('text') // 'text' | 'file'
   const [text, setText] = useState('')
   const [file, setFile] = useState(null)
+  const [caseName, setCaseName] = useState('')
   const [caseId, setCaseId] = useState(searchParams.get('case_id') || '')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
@@ -21,6 +24,10 @@ export default function NewCase() {
     setError(null)
     setSuccess(null)
 
+    if (!caseName.trim()) {
+      setError('Enter a case name.')
+      return
+    }
     if (mode === 'text' && !text.trim()) {
       setError('Enter the complaint text, or switch to file upload.')
       return
@@ -36,17 +43,20 @@ export default function NewCase() {
       if (mode === 'file') {
         const formData = new FormData()
         formData.append('file', file)
+        formData.append('caseName', caseName.trim())
         if (caseId.trim()) formData.append('case_id', caseId.trim())
         res = await apiBackend.post('/ingest', formData)
       } else {
         res = await apiBackend.post('/ingest', {
           text: text.trim(),
+          caseName: caseName.trim(),
           case_id: caseId.trim() || undefined,
         })
       }
       setSuccess(res.data)
       setText('')
       setFile(null)
+      setCaseName('')
     } catch (err) {
       setError(err.response?.data?.error || 'Something went wrong submitting this evidence.')
     } finally {
@@ -70,6 +80,29 @@ export default function NewCase() {
       </div>
 
       <form className={styles.form} onSubmit={handleSubmit}>
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor="caseName">
+            Case Name
+          </label>
+          <input
+            id="caseName"
+            type="text"
+            className={styles.input}
+            placeholder="e.g. Phishing complaint — HDFC customer"
+            value={caseName}
+            onChange={(e) => setCaseName(e.target.value)}
+            required
+          />
+        </div>
+
+        <div className={styles.field}>
+          <label className={styles.label}>Investigator</label>
+          <div className={styles.readonlyField}>
+            <UserIcon width={16} height={16} />
+            <span>{user?.name || 'Unknown investigator'}</span>
+          </div>
+        </div>
+
         <div className={styles.tabs}>
           <button
             type="button"

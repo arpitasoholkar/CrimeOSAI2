@@ -1,58 +1,3 @@
-// import { motion } from 'framer-motion'
-// import { useNavigate } from 'react-router-dom'
-// import StatCard from '../components/StatCard/StatCard'
-// import CaseCard from '../components/CaseCard/CaseCard'
-// import ActivityFeed from '../components/ActivityFeed/ActivityFeed'
-// import QuickActions from '../components/QuickActions/QuickActions'
-// import { heroStats, recentCases, activityFeed, quickActions } from '../data/mockData'
-// import styles from './Dashboard.module.css'
-
-// export default function Dashboard() {
-//   const navigate = useNavigate()
-
-//   const handleQuickAction = (id) => {
-//     if (id === 'upload') navigate('/new-case')
-//     if (id === 'report') navigate('/reports')
-//     if (id === 'search') navigate('/cases')
-//   }
-
-//   return (
-//     <div className={styles.layout}>
-//       <div className={styles.mainCol}>
-//         <section className={styles.statsGrid}>
-//           {heroStats.map((stat, i) => (
-//             <StatCard key={stat.id} {...stat} index={i} />
-//           ))}
-//         </section>
-
-//         <motion.section
-//           className={styles.casesPanel}
-//           initial={{ opacity: 0, y: 10 }}
-//           animate={{ opacity: 1, y: 0 }}
-//           transition={{ duration: 0.32, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-//         >
-//           <div className={styles.panelHeader}>
-//             <h2 className={styles.panelTitle}>Recent Investigations</h2>
-//             <button type="button" className={styles.viewAll} onClick={() => navigate('/cases')}>
-//               View All
-//             </button>
-//           </div>
-
-//           <div className={styles.caseList}>
-//             {recentCases.map((c, i) => (
-//               <CaseCard key={c.id} caseItem={c} index={i} onOpen={(id) => navigate(`/cases?open=${id}`)} />
-//             ))}
-//           </div>
-//         </motion.section>
-//       </div>
-
-//       <aside className={styles.rightCol}>
-//         <ActivityFeed items={activityFeed} />
-//         <QuickActions actions={quickActions} onAction={handleQuickAction} />
-//       </aside>
-//     </div>
-//   )
-// }
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
@@ -96,7 +41,7 @@ export default function Dashboard() {
 
   const handleQuickAction = (id) => {
     if (id === 'upload') navigate('/new-case')
-    if (id === 'report') navigate('/reports')
+    if (id === 'mycases') navigate('/my-cases')
     if (id === 'search') navigate('/cases')
   }
 

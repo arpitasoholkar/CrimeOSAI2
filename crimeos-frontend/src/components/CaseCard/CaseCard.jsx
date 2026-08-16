@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { FileTextIcon, ImageIcon, AudioIcon, ChevronRightIcon } from '../Icons/Icons'
+import { FileTextIcon, ImageIcon, AudioIcon, ChevronRightIcon, LockIcon, CheckCircleIcon, XCircleIcon } from '../Icons/Icons'
+import { apiBackend } from '../../api/api'
 import styles from './CaseCard.module.css'
 
 const STATUS_STYLE = {
@@ -21,7 +23,25 @@ const EVIDENCE_ICON = {
 }
 
 export default function CaseCard({ caseItem, index = 0, onOpen }) {
-  const { id, title, status, evidence, extraEvidence, risk, updated } = caseItem
+  const { id, title, status, evidence, extraEvidence, risk, updated, isInvestigator, myAccessRequestStatus } = caseItem
+  // 'pending' | 'approved' | 'rejected' | null — reflects the *latest*
+  // request this user made, so a rejection sticks instead of quietly
+  // reverting to a fresh "Request Access" button on the next load.
+  const [requestStatus, setRequestStatus] = useState(myAccessRequestStatus ?? null)
+  const [requesting, setRequesting] = useState(false)
+
+  const handleRequestAccess = async (e) => {
+    e.stopPropagation()
+    setRequesting(true)
+    try {
+      await apiBackend.post(`/cases/${id}/access-request`)
+      setRequestStatus('pending')
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setRequesting(false)
+    }
+  }
 
   return (
     <motion.div
@@ -64,9 +84,33 @@ export default function CaseCard({ caseItem, index = 0, onOpen }) {
         <span className={styles.updatedValue}>{updated}</span>
       </div>
 
-      <button type="button" className={styles.openBtn} onClick={() => onOpen?.(id)} aria-label={`Open ${id}`}>
-        <ChevronRightIcon width={17} height={17} />
-      </button>
+      {isInvestigator === false ? (
+        requestStatus === 'pending' ? (
+          <span className={styles.pendingLabel}>
+            <LockIcon width={13} height={13} />
+            Request Pending
+          </span>
+        ) : requestStatus === 'rejected' ? (
+          <span className={styles.rejectedLabel}>
+            <XCircleIcon width={13} height={13} />
+            Access Rejected
+          </span>
+        ) : (
+          <button
+            type="button"
+            className={styles.requestBtn}
+            onClick={handleRequestAccess}
+            disabled={requesting}
+          >
+            <LockIcon width={13} height={13} />
+            {requesting ? 'Requesting…' : 'Request Access'}
+          </button>
+        )
+      ) : (
+        <button type="button" className={styles.openBtn} onClick={() => onOpen?.(id)} aria-label={`Open ${id}`}>
+          <ChevronRightIcon width={17} height={17} />
+        </button>
+      )}
     </motion.div>
   )
 }

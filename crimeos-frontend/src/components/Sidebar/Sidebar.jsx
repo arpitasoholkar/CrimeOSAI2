@@ -1,28 +1,32 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useEffect, useState } from 'react'
 import { useTheme } from '../../context/ThemeContext'
 import { useAuth } from '../../context/AuthContext'
+import { apiBackend } from '../../api/api'
 import {
   ShieldIcon,
   GridIcon,
   FolderIcon,
   PlusCircleIcon,
-  AnalysisIcon,
-  ReportIcon,
   SettingsIcon,
   SunIcon,
   MoonIcon,
   XIcon,
   LogOutIcon,
+  BadgeIcon,
+  LockIcon,
+  ArchiveIcon,
 } from '../Icons/Icons'
 import styles from './Sidebar.module.css'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: GridIcon, end: true },
   { to: '/cases', label: 'Cases', icon: FolderIcon },
+  { to: '/my-cases', label: 'My Cases', icon: BadgeIcon },
   { to: '/new-case', label: 'New Case', icon: PlusCircleIcon },
-  { to: '/analysis', label: 'Analysis', icon: AnalysisIcon },
-  { to: '/reports', label: 'Reports', icon: ReportIcon },
+  { to: '/access-requests', label: 'Access Requests', icon: LockIcon, badgeKey: 'accessRequests' },
+  { to: '/cases-archive', label: 'Cases Archive', icon: ArchiveIcon },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
 ]
 
@@ -35,10 +39,44 @@ function getInitials(name) {
 
 const BACKEND_ORIGIN = 'http://localhost:3000'
 
+// avatarUrl is normally a relative "/uploads/avatars/..." path served by
+// our own backend, but some accounts (e.g. older Google sign-ins) may
+// have an absolute external URL stored -- don't prefix those with our
+// origin or the <img> src ends up mangled and just shows a broken image.
+function resolveAvatarSrc(avatarUrl) {
+  if (!avatarUrl) return null
+  if (/^https?:\/\//i.test(avatarUrl)) return avatarUrl
+  return `${BACKEND_ORIGIN}${avatarUrl}`
+}
+
 function SidebarContent({ onNavigate }) {
   const { theme, toggleTheme } = useTheme()
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const [pendingCount, setPendingCount] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadCount = () => {
+      apiBackend
+        .get('/cases/access-requests/incoming')
+        .then((res) => {
+          if (cancelled) return
+          setPendingCount((res.data.requests || []).length)
+        })
+        .catch(() => {})
+    }
+
+    loadCount()
+    // Re-check periodically so the badge doesn't go stale while the
+    // investigator sits on another page.
+    const interval = setInterval(loadCount, 30000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [])
 
   const handleProfileClick = () => {
     onNavigate?.()
@@ -52,7 +90,7 @@ function SidebarContent({ onNavigate }) {
     navigate('/login', { replace: true })
   }
 
-  const avatarSrc = user?.avatarUrl ? `${BACKEND_ORIGIN}${user.avatarUrl}` : null
+  const avatarSrc = resolveAvatarSrc(user?.avatarUrl)
 
   return (
     <>
@@ -69,7 +107,7 @@ function SidebarContent({ onNavigate }) {
       </div>
 
       <nav className={styles.nav} aria-label="Primary">
-        {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
+        {NAV_ITEMS.map(({ to, label, icon: Icon, end, badgeKey }) => (
           <NavLink
             key={to}
             to={to}
@@ -79,6 +117,9 @@ function SidebarContent({ onNavigate }) {
           >
             <Icon width={18} height={18} />
             <span>{label}</span>
+            {badgeKey === 'accessRequests' && pendingCount > 0 && (
+              <span className={styles.navBadge}>{pendingCount > 9 ? '9+' : pendingCount}</span>
+            )}
           </NavLink>
         ))}
       </nav>
@@ -99,20 +140,49 @@ function SidebarContent({ onNavigate }) {
           </span>
         </button>
 
-        <button type="button" className={styles.profile} onClick={handleProfileClick}>
-          {avatarSrc ? (
-            <img src={avatarSrc} alt={user.name} className={styles.avatarImg} />
-          ) : (
-            <span className={styles.avatar}>{getInitials(user?.name)}</span>
-          )}
-          <span className={styles.profileText}>
-            <span className={styles.profileName}>{user?.name || 'Investigator'}</span>
-            <span className={styles.profileRole}>{user?.organisation || 'Cyber Crime Unit'}</span>
-          </span>
-          <button type="button" className={styles.logoutIconBtn} onClick={handleLogout} aria-label="Log out">
-            <LogOutIcon width={16} height={16} />
-          </button>
-        </button>
+     <div
+  className={styles.profile}
+  role="button"
+  tabIndex={0}
+  onClick={handleProfileClick}
+  onKeyDown={(e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      handleProfileClick()
+    }
+  }}
+>
+  {avatarSrc ? (
+    <img
+      src={avatarSrc}
+      alt={user?.name || 'Profile'}
+      className={styles.avatarImg}
+    />
+  ) : (
+    <span className={styles.avatar}>
+      {getInitials(user?.name)}
+    </span>
+  )}
+
+  <span className={styles.profileText}>
+    <span className={styles.profileName}>
+      {user?.name || 'Investigator'}
+    </span>
+
+    <span className={styles.profileRole}>
+      {user?.organisation || 'Cyber Crime Unit'}
+    </span>
+  </span>
+
+  <button
+    type="button"
+    className={styles.logoutIconBtn}
+    onClick={handleLogout}
+    aria-label="Log out"
+  >
+    <LogOutIcon width={16} height={16} />
+  </button>
+</div>
       </div>
     </>
   )
