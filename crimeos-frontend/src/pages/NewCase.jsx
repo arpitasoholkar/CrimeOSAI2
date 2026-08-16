@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { apiBackend } from '../api/api'
 import { useAuth } from '../context/AuthContext'
-import { UploadCloudIcon, FileTextIcon, CheckCircleIcon, UserIcon } from '../components/Icons/Icons'
+import { UploadCloudIcon, FileTextIcon, CheckCircleIcon, UserIcon, TrashIcon, ImageIcon, AudioIcon } from '../components/Icons/Icons'
 import styles from './NewCase.module.css'
 
 export default function NewCase() {
@@ -12,12 +12,42 @@ export default function NewCase() {
   const [searchParams] = useSearchParams()
   const [mode, setMode] = useState('text') // 'text' | 'file'
   const [text, setText] = useState('')
-  const [file, setFile] = useState(null)
+  const [files, setFiles] = useState([]) // multiple files: image, audio, pdf, etc. all at once
   const [caseName, setCaseName] = useState('')
   const [caseId, setCaseId] = useState(searchParams.get('case_id') || '')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
+
+  // Merge newly chosen files into the existing selection instead of
+  // replacing it, so picking image + audio + pdf across a few clicks (or
+  // drops) at once, adds up rather than overwriting one another.
+  const addFiles = (incoming) => {
+    const incomingList = Array.from(incoming || [])
+    if (incomingList.length === 0) return
+    setFiles((prev) => {
+      const existingKeys = new Set(prev.map((f) => `${f.name}-${f.size}-${f.lastModified}`))
+      const deduped = incomingList.filter(
+        (f) => !existingKeys.has(`${f.name}-${f.size}-${f.lastModified}`)
+      )
+      return [...prev, ...deduped]
+    })
+  }
+
+  const removeFile = (indexToRemove) => {
+    setFiles((prev) => prev.filter((_, i) => i !== indexToRemove))
+  }
+
+  const handleDrop = (e) => {
+    e.preventDefault()
+    addFiles(e.dataTransfer.files)
+  }
+
+  const fileIcon = (f) => {
+    if (f.type.startsWith('image/')) return <ImageIcon width={15} height={15} />
+    if (f.type.startsWith('audio/')) return <AudioIcon width={15} height={15} />
+    return <FileTextIcon width={15} height={15} />
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -32,8 +62,8 @@ export default function NewCase() {
       setError('Enter the complaint text, or switch to file upload.')
       return
     }
-    if (mode === 'file' && !file) {
-      setError('Choose a file to upload.')
+    if (mode === 'file' && files.length === 0) {
+      setError('Choose at least one file to upload.')
       return
     }
 
@@ -42,7 +72,7 @@ export default function NewCase() {
       let res
       if (mode === 'file') {
         const formData = new FormData()
-        formData.append('file', file)
+        files.forEach((f) => formData.append('files', f))
         formData.append('caseName', caseName.trim())
         if (caseId.trim()) formData.append('case_id', caseId.trim())
         res = await apiBackend.post('/ingest', formData)
@@ -55,7 +85,7 @@ export default function NewCase() {
       }
       setSuccess(res.data)
       setText('')
-      setFile(null)
+      setFiles([])
       setCaseName('')
     } catch (err) {
       setError(err.response?.data?.error || 'Something went wrong submitting this evidence.')
@@ -129,16 +159,50 @@ export default function NewCase() {
             rows={8}
           />
         ) : (
-          <label className={styles.dropzone}>
-            <UploadCloudIcon width={22} height={22} />
-            <span>{file ? file.name : 'Click to choose a PDF, image, or audio file'}</span>
-            <input
-              type="file"
-              accept=".pdf,image/*,audio/*"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              hidden
-            />
-          </label>
+          <>
+            <label
+              className={styles.dropzone}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={handleDrop}
+            >
+              <UploadCloudIcon width={22} height={22} />
+              <span>
+                {files.length > 0
+                  ? `${files.length} file${files.length > 1 ? 's' : ''} selected — click or drop to add more`
+                  : 'Click or drop PDF, image, and audio files — mix as many as you need'}
+              </span>
+              <input
+                type="file"
+                accept=".pdf,image/*,audio/*"
+                multiple
+                onChange={(e) => {
+                  addFiles(e.target.files)
+                  e.target.value = '' // allow re-adding the same file / picking again
+                }}
+                hidden
+              />
+            </label>
+
+            {files.length > 0 && (
+              <ul className={styles.fileList}>
+                {files.map((f, i) => (
+                  <li key={`${f.name}-${f.size}-${f.lastModified}`} className={styles.fileListItem}>
+                    {fileIcon(f)}
+                    <span className={styles.fileListName}>{f.name}</span>
+                    <span className={styles.fileListSize}>{(f.size / 1024).toFixed(0)} KB</span>
+                    <button
+                      type="button"
+                      className={styles.fileListRemove}
+                      onClick={() => removeFile(i)}
+                      aria-label={`Remove ${f.name}`}
+                    >
+                      <TrashIcon width={14} height={14} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
         )}
 
         <div className={styles.field}>

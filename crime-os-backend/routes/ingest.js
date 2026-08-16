@@ -17,9 +17,10 @@ const upload = multer({
  *
  * Supports:
  * 1. JSON body: { text: "...", caseName: "..." }
- * 2. PDF upload (+ caseName field)
- * 3. Image upload (+ caseName field)
- * 4. Audio upload (+ caseName field)
+ * 2. Single or multiple file upload under the "files" field
+ *    (any mix of PDF / image / audio in one request, + caseName field).
+ *    The older single-file field name "file" is still accepted for
+ *    backwards compatibility with older clients.
  *
  * Optional:
  * case_id  -> if provided, evidence is added to an existing case.
@@ -30,62 +31,95 @@ const upload = multer({
  * lead investigator (or is checked against the existing case's
  * investigators, though evidence upload isn't access-gated itself yet).
  */
-router.post("/", requireAuth, upload.single("file"), async (req, res) => {
-  try {
-    // -----------------------------
-    // Extract complaint information
-    // -----------------------------
-    const result = req.file
-      ? await ingest({
-          fileBuffer: req.file.buffer,
-          originalname: req.file.originalname,
-          mimetype: req.file.mimetype,
-        })
-      : await ingest({
-          text: req.body.text,
+router.post(
+  "/",
+  requireAuth,
+  upload.fields([
+    { name: "files", maxCount: 20 },
+    { name: "file", maxCount: 1 }, // legacy single-file clients
+  ]),
+  async (req, res) => {
+    try {
+      // -----------------------------
+      // Collect uploaded files (new multi-file field first, fall back to
+      // the legacy single-file field so old clients keep working)
+      // -----------------------------
+      const uploadedFiles = [
+        ...(req.files?.files || []),
+        ...(req.files?.file || []),
+      ];
+
+      // A case_id in the request means we're adding evidence to an existing
+      // case ("evidence_added"); no case_id means this complaint is creating
+      // a brand new case ("initial_complaint") -- the investigation engine
+      // treats those as different triggers (v1 vs a re-investigation).
+      const isNewCase = !req.body.case_id;
+      let caseId = req.body.case_id;
+      let savedCase;
+
+      if (uploadedFiles.length > 0) {
+        // -----------------------------
+        // Extract + save each file as its own evidence item, one at a
+        // time, chaining them onto the same case (the first file either
+        // creates the case or attaches to the given case_id; every file
+        // after that attaches to the case_id we now have).
+        // -----------------------------
+        for (const uploadedFile of uploadedFiles) {
+          const result = await ingest({
+            fileBuffer: uploadedFile.buffer,
+            originalname: uploadedFile.originalname,
+            mimetype: uploadedFile.mimetype,
+          });
+
+          savedCase = await saveEvidence({
+            caseId,
+            evidence: result,
+            caseName: req.body.caseName,
+            user: req.user,
+          });
+
+          caseId = savedCase.case_id;
+        }
+      } else {
+        // -----------------------------
+        // Plain text complaint, no files
+        // -----------------------------
+        const result = await ingest({ text: req.body.text });
+
+        savedCase = await saveEvidence({
+          caseId,
+          evidence: result,
+          caseName: req.body.caseName,
+          user: req.user,
         });
+      }
 
-    // -----------------------------
-    // Save to MongoDB
-    // -----------------------------
-    // A case_id in the request means we're adding evidence to an existing
-    // case ("evidence_added"); no case_id means this complaint is creating
-    // a brand new case ("initial_complaint") -- the investigation engine
-    // treats those as different triggers (v1 vs a re-investigation).
-    const isNewCase = !req.body.case_id;
+      // -----------------------------
+      // Trigger AI investigation (fire-and-forget, doesn't block the response)
+      // -----------------------------
+      triggerReinvestigation(
+        savedCase.case_id,
+        isNewCase ? "initial_complaint" : "evidence_added"
+      );
 
-    const savedCase = await saveEvidence({
-      caseId: req.body.case_id,
-      evidence: result,
-      caseName: req.body.caseName,
-      user: req.user,
-    });
+      // -----------------------------
+      // Return saved case
+      // -----------------------------
+      return res.status(200).json(savedCase);
+    } catch (err) {
+      if (err instanceof IngestError) {
+        return res.status(err.statusCode).json({
+          error: err.message,
+        });
+      }
 
-    // -----------------------------
-    // Trigger AI investigation (fire-and-forget, doesn't block the response)
-    // -----------------------------
-    triggerReinvestigation(
-      savedCase.case_id,
-      isNewCase ? "initial_complaint" : "evidence_added"
-    );
+      console.error("[ingest route] Unexpected error:", err);
 
-    // -----------------------------
-    // Return saved case
-    // -----------------------------
-    return res.status(200).json(savedCase);
-  } catch (err) {
-    if (err instanceof IngestError) {
-      return res.status(err.statusCode).json({
-        error: err.message,
+      return res.status(500).json({
+        error: "Something went wrong processing this complaint.",
       });
     }
-
-    console.error("[ingest route] Unexpected error:", err);
-
-    return res.status(500).json({
-      error: "Something went wrong processing this complaint.",
-    });
   }
-});
+);
 
 export default router;

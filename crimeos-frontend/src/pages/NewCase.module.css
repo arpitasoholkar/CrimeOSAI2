@@ -103,6 +103,59 @@
   color: var(--text-primary);
 }
 
+.fileList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fileListItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text-secondary);
+  padding: 8px 10px;
+  font-size: 12.5px;
+}
+
+.fileListName {
+  flex: 1;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileListSize {
+  color: var(--text-tertiary);
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+
+.fileListRemove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: var(--danger);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.fileListRemove:hover {
+  background: var(--danger-soft);
+}
+
 .field {
   display: flex;
   flex-direction: column;

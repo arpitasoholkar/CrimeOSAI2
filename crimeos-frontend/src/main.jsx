@@ -13,7 +13,7 @@ if (!GOOGLE_CLIENT_ID) {
   // Google Sign-In will render its own "missing client ID" error in the
   // console/UI, but this makes the misconfiguration obvious immediately.
   console.warn(
-    '⚠️  VITE_GOOGLE_CLIENT_ID is not set — the "Continue with Google" button will not work until it is (see crimeos-frontend/.env.example).'
+    '⚠️  VITE_GOOGLE_CLIENT_ID is not set — the "Continue with Google" button will not work until it is (see trinetra-frontend/.env.example).'
   )
 }
 
