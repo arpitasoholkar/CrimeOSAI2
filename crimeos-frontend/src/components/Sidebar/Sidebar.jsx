@@ -9,8 +9,6 @@ import {
   GridIcon,
   FolderIcon,
   PlusCircleIcon,
-  AnalysisIcon,
-  ReportIcon,
   SettingsIcon,
   SunIcon,
   MoonIcon,
@@ -27,8 +25,6 @@ const NAV_ITEMS = [
   { to: '/my-cases', label: 'My Cases', icon: BadgeIcon },
   { to: '/new-case', label: 'New Case', icon: PlusCircleIcon },
   { to: '/access-requests', label: 'Access Requests', icon: LockIcon, badgeKey: 'accessRequests' },
-  { to: '/analysis', label: 'Analysis', icon: AnalysisIcon },
-  { to: '/reports', label: 'Reports', icon: ReportIcon },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
 ]
 

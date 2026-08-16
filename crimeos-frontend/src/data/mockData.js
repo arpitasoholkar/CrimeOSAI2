@@ -61,6 +61,6 @@ export const activityFeed = [
 
 export const quickActions = [
   { id: 'upload', label: 'Upload Evidence', icon: 'upload' },
-  { id: 'report', label: 'Generate Report', icon: 'report' },
+  { id: 'mycases', label: 'My Cases', icon: 'mycases' },
   { id: 'search', label: 'Search Entities', icon: 'search' },
 ]

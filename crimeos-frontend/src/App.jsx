@@ -10,7 +10,7 @@ import CaseDetails from './pages/CaseDetails'
 import MyCases from './pages/MyCases'
 import AccessRequests from './pages/AccessRequests'
 import AIInvestigation from './pages/AIInvestigation'
-import PlaceholderPage from './pages/PlaceholderPage'
+import Settings from './pages/Settings'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Profile from './pages/Profile'
@@ -29,7 +29,6 @@ function AppShell() {
       <div className={styles.main}>
         <TopNav
           onMenuClick={() => setDrawerOpen(true)}
-          notificationCount={3}
           onNewCase={() => navigate('/new-case')}
         />
 
@@ -42,9 +41,7 @@ function AppShell() {
             <Route path="/new-case" element={<NewCase />} />
             <Route path="/my-cases" element={<MyCases />} />
             <Route path="/access-requests" element={<AccessRequests />} />
-            <Route path="/analysis" element={<PlaceholderPage title="Analysis" description="AI reasoning output — risk scoring, timelines and recommendations." />} />
-            <Route path="/reports" element={<PlaceholderPage title="Reports" description="Generated investigation reports, ready to export." />} />
-            <Route path="/settings" element={<PlaceholderPage title="Settings" description="Workspace, notification and account preferences." />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="/profile" element={<Profile />} />
           </Routes>
         </div>

@@ -1,9 +1,9 @@
-import { UploadCloudIcon, ReportIcon, SearchIcon } from '../Icons/Icons'
+import { UploadCloudIcon, BadgeIcon, SearchIcon } from '../Icons/Icons'
 import styles from './QuickActions.module.css'
 
 const ICONS = {
   upload: UploadCloudIcon,
-  report: ReportIcon,
+  mycases: BadgeIcon,
   search: SearchIcon,
 }
 
