@@ -61,9 +61,11 @@
   text-align: center;
 }
 
-/* Custom Leaflet divIcon pin -- a simple colored dot with a soft ring,
-   styled to match the app's design tokens instead of Leaflet's default
-   blue marker image. */
+.pin {
+  background: transparent;
+  border: 0;
+}
+
 .pin span {
   display: block;
   width: 14px;

@@ -30,11 +30,6 @@ dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
-// NOTE: default changed from 4000 -> 3001. crimeos-frontend's apiBrain
-// client (api/api.js) and crime-os-backend's reinvestigate trigger
-// (lib/reinvestigate.js) both assume this service is on 3001 by default;
-// they previously disagreed with this file's old 4000 default unless
-// PORT was set in .env. Override with PORT= if you need something else.
 const port = process.env.PORT || 3001;
 
 app.use(express.json());
@@ -58,37 +53,15 @@ connectDB().catch((err) => {
 });
 
 // ---------- Per-case mutex for /api/investigate ----------
-//
-// assembleInvestigationVersion() computes `version` from
-// `caseDoc.investigationVersions.length + 1` -- a snapshot read before
-// this request's caseDoc.save(). If two triggers fire for the same
-// case close together (e.g. an evidence-upload auto-trigger landing
-// right after the initial-complaint investigation), both can read the
-// same pre-save length and independently compute the same "next"
-// version number. Because Mongoose sends array .push() as an atomic
-// $push rather than a full-document overwrite, BOTH saves genuinely
-// land in MongoDB -- producing two distinct version objects that are
-// both stamped e.g. `version: 1`, instead of one save clobbering the
-// other (this is the exact bug behind the "duplicate key '1'" React
-// warning on CaseDetails.jsx's investigation-history list).
-//
-// Serializing per case_id closes that window: a second call for the
-// same case only starts its read after the first call's save has
-// actually completed, so it always sees the true, up-to-date length.
-// Calls for *different* cases are unaffected and still run concurrently.
 const caseLocks = new Map(); // case_id -> tail of the pending chain
 
 function withCaseLock(caseId, fn) {
   const prev = caseLocks.get(caseId) || Promise.resolve();
-  const next = prev.then(fn, fn); // run fn regardless of the previous call's outcome
-  // Keep the chain going, but don't let a past rejection propagate into
-  // future callers waiting on this case's lock.
+  const next = prev.then(fn, fn);
   caseLocks.set(caseId, next.catch(() => {}));
   return next;
 }
 
-// In-memory audit log -- only used by the standalone /api/suggest + /api/decision
-// testing routes below, unrelated to the real MongoDB-backed flow.
 const auditLog = [];
 
 // ---------- Manual testing routes (no MongoDB involved) ----------
@@ -102,7 +75,7 @@ app.post("/api/suggest", async (req, res) => {
     const suggestion = await engine.suggest(complaintText);
     res.json(suggestion);
   } catch (err) {
-    console.error(err);
+    console.error("[/api/suggest] failed:", err);
     const friendly = friendlyAiErrorMessage(err);
     if (friendly.error) {
       return res.status(friendly.status).json({ error: friendly.error });
@@ -143,9 +116,6 @@ app.get("/api/case/:case_id", async (req, res) => {
 
 // ---------- Helpers ----------
 
-// Cases may come from either the newer CrimeOS structure (`complaint.raw`)
-// or the older `evidence[].raw_text` structure. Prefer the newer field,
-// fall back to the older one.
 function extractComplaintText(caseDoc) {
   if (caseDoc.complaint?.raw) {
     return caseDoc.complaint.raw;
@@ -159,13 +129,6 @@ function extractComplaintText(caseDoc) {
   return "";
 }
 
-// The Gemini SDK throws errors whose `.message` is the raw HTTP body from
-// Google (often several hundred characters of JSON-in-a-string, rate-limit
-// docs links, quota metric names, etc). That's fine in server logs, but it's
-// not something an investigating officer should see on screen. This turns
-// the handful of error shapes we actually hit in practice into one short,
-// actionable sentence -- everything else still logs the full detail server-
-// side via console.error, just not in the HTTP response.
 function friendlyAiErrorMessage(err) {
   const raw = err?.message || "";
 
@@ -187,6 +150,21 @@ function friendlyAiErrorMessage(err) {
     };
   }
 
+  // FIX: a 404 from the Gemini SDK means "model not found" -- it is NOT the
+  // same thing as "case not found" or "route not found". Previously this
+  // fell through to the generic handler in /api/investigate, which blindly
+  // reused err.status and sent 404 straight to the browser with a vague
+  // "Investigation failed" message -- making a dead AI model name look
+  // identical, in the browser console, to a broken route. Surface it
+  // explicitly instead, as a 502 (upstream/AI service failure), so it's
+  // never confused with "this case_id / route doesn't exist".
+  if (err?.status === 404 && /generativelanguage\.googleapis\.com|GoogleGenerativeAI/i.test(raw)) {
+    return {
+      status: 502,
+      error: "The configured AI model is unavailable or has been retired. An admin needs to update GEMINI_MODEL.",
+    };
+  }
+
   return { status: err?.status || 500, error: null };
 }
 
@@ -199,21 +177,34 @@ app.post("/api/investigate", async (req, res) => {
   }
 
   try {
-    // Serialized per case_id -- see withCaseLock() above for why this
-    // matters: it's what prevents two near-simultaneous triggers for
-    // the same case from both computing the same "next version" number.
     const result = await withCaseLock(case_id, () => runInvestigation(case_id, trigger));
     res.json(result);
   } catch (err) {
-    console.error(err);
+    // FIX: always log the full error server-side, with which case_id it
+    // was for -- this used to be a bare console.error(err), which made it
+    // hard to tell which request in the terminal corresponded to which
+    // browser-side failure.
+    console.error(`[/api/investigate] case_id=${case_id} failed:`, err);
+
     const friendly = friendlyAiErrorMessage(err);
     if (friendly.error) {
       return res.status(friendly.status).json({ error: friendly.error });
     }
-    if (err.status) {
-      return res.status(err.status).json({ error: "Investigation failed. Please try again." });
+
+    // FIX: previously `if (err.status) return res.status(err.status)...`
+    // blindly forwarded ANY upstream status code (including Gemini's own
+    // 404 for "model not found") straight to the browser, making it
+    // indistinguishable from "route not found". Now only genuine,
+    // intentionally-thrown application errors (Case not found = 404,
+    // missing complaint text = 400 -- both set err.status explicitly in
+    // runInvestigation below) pass their status through. Everything else
+    // is a real server-side failure and correctly reports as 500.
+    const isKnownAppError = err.status === 404 || err.status === 400;
+    if (isKnownAppError) {
+      return res.status(err.status).json({ error: err.message });
     }
-    res.status(500).json({ error: "Investigation failed", detail: err.message });
+
+    res.status(500).json({ error: "Investigation failed due to a server error.", detail: err.message });
   }
 });
 
@@ -238,10 +229,6 @@ async function runInvestigation(case_id, trigger) {
 
   const suggestion = await engine.suggest(complaintText);
 
-  // Trigger defaults to "initial_complaint" for a case's first
-  // investigation, "manual_reinvestigation" otherwise, unless the
-  // caller (evidence upload / legal response / ingest) told us exactly
-  // what happened.
   const resolvedTrigger =
     trigger || (caseDoc.investigationVersions?.length ? "manual_reinvestigation" : "initial_complaint");
 
@@ -250,8 +237,6 @@ async function runInvestigation(case_id, trigger) {
   caseDoc.investigationVersions = caseDoc.investigationVersions || [];
   caseDoc.investigationVersions.push(newVersion);
 
-  // Legacy mirror for anything still reading `analysis` directly
-  // (AIInvestigation.jsx's step/legal-section approval flow).
   caseDoc.analysis = { ...suggestion, generatedAt: new Date().toISOString() };
   caseDoc.status = "under_investigation";
 
@@ -284,11 +269,8 @@ async function runInvestigation(case_id, trigger) {
   };
 }
 
-// ---------- Approve / reject a single recommendation on the latest
-// investigation version (used by the "Next Best Action" card) ----------
-
 app.post("/api/case/:case_id/recommendation/:recommendationId/status", async (req, res) => {
-  const { status, decidedBy } = req.body; // status: 'approved' | 'rejected'
+  const { status, decidedBy } = req.body;
   if (!["approved", "rejected"].includes(status)) {
     return res.status(400).json({ error: "status must be 'approved' or 'rejected'" });
   }
@@ -324,10 +306,6 @@ app.post("/api/case/:case_id/recommendation/:recommendationId/status", async (re
     res.status(500).json({ error: "Failed to update recommendation", detail: err.message });
   }
 });
-
-// ---------- Similar cases (lightweight RAG over other cases'
-// complaint text -- genuinely new, no prior case-to-case similarity
-// existed in this codebase; SOP retrieval in retrieval.js is separate) ----------
 
 app.get("/api/case/:case_id/similar", async (req, res) => {
   try {
@@ -406,12 +384,6 @@ app.post("/api/case/:case_id/approve", async (req, res) => {
     res.status(500).json({ error: "Failed to save officer decision", detail: err.message });
   }
 });
-
-// NOTE: the old /api/case/:case_id/crimeos-summary route (built a summary
-// from the latest approved report only) has been retired -- it duplicated
-// crime-os-backend's POST /cases/:case_id/summary/generate, which now reads
-// from the latest investigation version and is the single canonical
-// "Current Investigation Assessment" source (see summaryService.js).
 
 app.listen(port, () => {
   console.log(`AI service running at http://localhost:${port}`);
