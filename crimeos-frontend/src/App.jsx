@@ -3,6 +3,7 @@ import { Routes, Route, useNavigate } from 'react-router-dom'
 import Sidebar from './components/Sidebar/Sidebar'
 import TopNav from './components/TopNav/TopNav'
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute'
+import TrinetraLoader from './components/loader/TrinetraLoader'
 import Dashboard from './pages/Dashboard'
 import NewCase from './pages/NewCase'
 import CaseDetails from './pages/CaseDetails'
@@ -49,6 +50,15 @@ function AppShell() {
 }
 
 export default function App() {
+  // Shown once at app boot — before the router decides whether to land on
+  // /login or the dashboard. Covers every full page load/refresh, matching
+  // the intended sequence: TRINETRA loader -> Login -> Dashboard.
+  const [booting, setBooting] = useState(true)
+
+  if (booting) {
+    return <TrinetraLoader onComplete={() => setBooting(false)} />
+  }
+
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
