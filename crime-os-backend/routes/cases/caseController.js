@@ -176,6 +176,18 @@ const getCaseById = async (req, res) => {
     const isInvestigator =
       !!username && caseData.investigators.includes(username);
 
+    // Completed cases are read-only and open to every authenticated
+    // investigator (not just the ones who worked the case) -- this is
+    // the Cases Archive: anyone can review how a closed case concluded.
+    if (!isInvestigator && caseData.isCompleted && username) {
+      return res.status(200).json({
+        success: true,
+        isInvestigator: false,
+        isArchivedView: true,
+        case: caseData,
+      });
+    }
+
     // Not on this case's investigator list -- return a stripped preview
     // instead of the full case (evidence, entities, timeline, requests,
     // etc). The frontend uses this to show a locked state with a
@@ -484,6 +496,136 @@ const getIncomingAccessRequests = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch incoming access requests",
+      error: error.message,
+    });
+  }
+};
+
+// =========================================================
+// MARK CASE COMPLETE
+// =========================================================
+//
+// POST /cases/:case_id/complete
+//
+// Any investigator on the case (not just the lead) can close it out.
+// Requires the closure story -- outcome, how it concluded, evidence,
+// and what happened to the victim -- so the Cases Archive is actually
+// useful to investigators who never worked the case.
+//
+
+const markCaseComplete = async (req, res) => {
+  try {
+    const { case_id } = req.params;
+    const {
+      outcome,
+      summary,
+      keyEvidence,
+      victimOutcome,
+      amountRecovered,
+      actionsTaken,
+    } = req.body;
+
+    const caseData = await Case.findOne({ case_id });
+
+    if (!caseData) {
+      return res.status(404).json({
+        success: false,
+        message: "Case not found",
+      });
+    }
+
+    if (!caseData.investigators.includes(req.user.username)) {
+      return res.status(403).json({
+        success: false,
+        message: "Only investigators on this case can mark it complete",
+      });
+    }
+
+    if (caseData.isCompleted) {
+      return res.status(400).json({
+        success: false,
+        message: "This case is already marked complete",
+      });
+    }
+
+    if (!outcome || !summary || !summary.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Outcome and a closing summary are required to complete a case",
+      });
+    }
+
+    caseData.isCompleted = true;
+    caseData.status = "closed";
+    caseData.resolution = {
+      outcome,
+      summary: summary.trim(),
+      keyEvidence: keyEvidence || "",
+      victimOutcome: victimOutcome || "",
+      amountRecovered:
+        amountRecovered !== undefined && amountRecovered !== null && amountRecovered !== ""
+          ? Number(amountRecovered)
+          : null,
+      actionsTaken: actionsTaken || "",
+      closedBy: req.user.username,
+      closedAt: new Date(),
+    };
+
+    const auditEntry = createHashedAuditEntry({
+      action: "CASE_COMPLETED",
+      actor: req.user.username,
+      details: {
+        outcome,
+        amountRecovered: caseData.resolution.amountRecovered,
+      },
+      auditLog: caseData.auditLog,
+    });
+    caseData.auditLog.push(auditEntry);
+
+    await caseData.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Case marked complete",
+      case: caseData,
+    });
+  } catch (error) {
+    console.error("Mark case complete error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to mark case complete",
+      error: error.message,
+    });
+  }
+};
+
+// =========================================================
+// GET CASES ARCHIVE
+// =========================================================
+//
+// GET /cases/archive/all
+//
+// Every completed case, visible to every authenticated investigator --
+// including ones who never worked the case -- so closures are a shared
+// record rather than locked behind the original investigator list.
+//
+
+const getArchivedCases = async (req, res) => {
+  try {
+    const cases = await Case.find(
+      { isCompleted: true },
+      "case_id title status severity updatedAt leadInvestigator investigators resolution"
+    )
+      .sort({ "resolution.closedAt": -1 })
+      .lean();
+
+    return res.status(200).json({ success: true, cases });
+  } catch (error) {
+    console.error("Get archived cases error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch the cases archive",
       error: error.message,
     });
   }
@@ -1569,6 +1711,8 @@ export {
   getMyCases,
   getMyAccessRequests,
   getIncomingAccessRequests,
+  markCaseComplete,
+  getArchivedCases,
   generateLegalRequest,
   approveLegalRequest,
   dispatchLegalRequest,

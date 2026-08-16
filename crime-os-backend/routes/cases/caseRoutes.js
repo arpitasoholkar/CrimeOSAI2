@@ -9,6 +9,8 @@ import {
   getMyCases,
   getMyAccessRequests,
   getIncomingAccessRequests,
+  markCaseComplete,
+  getArchivedCases,
   generateLegalRequest,
   approveLegalRequest,
   dispatchLegalRequest,
@@ -59,7 +61,17 @@ router.get(
   getIncomingAccessRequests
 );
 
+/* ===========================
+   CASE COMPLETION / ARCHIVE
+   (must also come before /:case_id so "/archive/all" isn't
+   swallowed as a case_id param)
+=========================== */
+
+router.get("/archive/all", requireAuth, getArchivedCases);
+
 router.get("/:case_id", requireAuth, getCaseById);
+
+router.post("/:case_id/complete", requireAuth, markCaseComplete);
 
 router.post(
   "/:case_id/access-request",
