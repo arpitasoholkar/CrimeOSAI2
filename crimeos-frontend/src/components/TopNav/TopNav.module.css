@@ -81,6 +81,17 @@
   color: var(--text-tertiary);
 }
 
+.searchIconBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
 .kbd {
   font-family: var(--font-mono);
   font-size: 10px;
