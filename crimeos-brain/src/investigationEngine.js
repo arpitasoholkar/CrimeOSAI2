@@ -27,16 +27,22 @@ dotenv.config();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // FIX: "gemini-2.5-flash-lite" was retired by Google ("no longer available
-// to new users") and started 404'ing on every call. Pinned here to
-// "gemini-2.5-flash", which is a currently-supported model. Both model
-// names are overridable via .env (GEMINI_MODEL / GEMINI_FALLBACK_MODEL) if
-// Google retires this one too in the future -- no code change needed then,
-// just update .env.
-const PRIMARY_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+// to new users") and started 404'ing on every call. Then its replacement,
+// "gemini-2.5-flash", was ALSO restricted for newer API keys/projects
+// within months -- pinned model names are being retired faster than they
+// can practically be chased by hand. Switched to Google's own
+// auto-updating "-latest" alias instead, which always resolves to
+// whichever Flash model Google currently recommends, so this class of
+// bug can't recur. (Previous concern with "-latest" was un-announced
+// behavior shifts; Google's docs guarantee >=2 weeks' notice by email
+// before a breaking change lands on it, which is an acceptable trade-off
+// against total outages from silent retirement.) Both model names are
+// still overridable via .env (GEMINI_MODEL / GEMINI_FALLBACK_MODEL) if
+// you ever want to pin to a specific version again.
+const PRIMARY_MODEL = process.env.GEMINI_MODEL || "gemini-flash-latest";
 // Fallback used only if the primary model's retries are exhausted on a
-// 429/503. Also pinned to a currently-supported model (not a "-lite" or
-// "-latest" alias, both of which have bitten this project before).
-const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || "gemini-2.0-flash";
+// 429/503.
+const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || "gemini-flash-lite-latest";
 
 const reasoningModel = genAI.getGenerativeModel({ model: PRIMARY_MODEL });
 const fallbackReasoningModel = genAI.getGenerativeModel({ model: FALLBACK_MODEL });

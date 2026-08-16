@@ -36,6 +36,12 @@ const evidenceSchema = new mongoose.Schema(
       pan_numbers: { type: [String], default: [] },
       aadhaar_numbers: { type: [String], default: [] },
       vehicle_numbers: { type: [String], default: [] },
+      // Physical places/addresses mentioned in the complaint text --
+      // this is what EVIDENCE_ENTITY_MAP (investigationState.js) reads
+      // to build ADDRESS-type entities for the Geographic Intelligence
+      // map. Must be declared here or Mongoose's strict-by-default
+      // sub-schema silently drops it on save.
+      addresses: { type: [String], default: [] },
       amounts: {
         type: [
           {

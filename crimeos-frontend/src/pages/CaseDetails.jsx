@@ -1502,7 +1502,7 @@ export default function CaseDetails() {
 
       <CaseIntelligencePanel caseDoc={caseDoc} latest={latest} previous={previous} />
 
-      <WhatChangedPanel latest={latest} versions={versions} />
+      {/* <WhatChangedPanel latest={latest} versions={versions} /> */}
 
       <GapsPanel latest={latest} />
 
@@ -1851,93 +1851,93 @@ function CaseIntelligencePanel({ caseDoc, latest, previous }) {
 // 3. WHAT CHANGED
 // =========================================================
 
-function WhatChangedPanel({ latest, versions }) {
-  const [expanded, setExpanded] = useState(false)
-  const delta = latest?.delta
+// function WhatChangedPanel({ latest, versions }) {
+//   const [expanded, setExpanded] = useState(false)
+//   const delta = latest?.delta
 
-  if (!latest) return null
+//   if (!latest) return null
 
-  if (!delta) {
-    return (
-      <section className={styles.section}>
-        <h3 className={styles.sectionTitle}>⭐ What Changed</h3>
-        <p className={styles.empty}>No previous investigation to compare — this is the first investigation version.</p>
-      </section>
-    )
-  }
+//   if (!delta) {
+//     return (
+//       <section className={styles.section}>
+//         <h3 className={styles.sectionTitle}>⭐ What Changed</h3>
+//         <p className={styles.empty}>No previous investigation to compare — this is the first investigation version.</p>
+//       </section>
+//     )
+//   }
 
-  const hasChanges =
-    delta.newFindings.length || delta.newEntities.length || delta.newRelationships.length ||
-    delta.riskChange || delta.confidenceChange || delta.newKnown.length ||
-    delta.resolvedMissing.length || delta.newMissing.length || delta.newRecommendations.length
+//   const hasChanges =
+//     delta.newFindings.length || delta.newEntities.length || delta.newRelationships.length ||
+//     delta.riskChange || delta.confidenceChange || delta.newKnown.length ||
+//     delta.resolvedMissing.length || delta.newMissing.length || delta.newRecommendations.length
 
-  return (
-    <section className={styles.section}>
-      <div className={styles.evidenceHead}>
-        <h3 className={styles.sectionTitle} style={{ margin: 0 }}>
-          ⭐ What Changed <span className={styles.metaText}>v{delta.fromVersion} → v{delta.toVersion}</span>
-        </h3>
-      </div>
+//   return (
+//     <section className={styles.section}>
+//       <div className={styles.evidenceHead}>
+//         <h3 className={styles.sectionTitle} style={{ margin: 0 }}>
+//           ⭐ What Changed <span className={styles.metaText}>v{delta.fromVersion} → v{delta.toVersion}</span>
+//         </h3>
+//       </div>
 
-      {!hasChanges ? (
-        <p className={styles.empty}>No new changes detected in this re-investigation.</p>
-      ) : (
-        <div className={styles.changeList}>
-          {delta.newFindings.map((f, i) => (
-            <div key={`nf-${i}`} className={styles.changeItem}>
-              <span className={styles.changeTagAdd}>+ NEW FINDING</span>
-              <p>{f.text}</p>
-            </div>
-          ))}
-          {delta.newEntities.map((e, i) => (
-            <div key={`ne-${i}`} className={styles.changeItem}>
-              <span className={styles.changeTagAdd}>+ NEW ENTITY</span>
-              <p>{e.type.replace(/_/g, ' ')}: {e.value}</p>
-            </div>
-          ))}
-          {delta.newRelationships.map((r, i) => (
-            <div key={`nr-${i}`} className={styles.changeItem}>
-              <span className={styles.changeTagAdd}>+ NEW RELATIONSHIP</span>
-              <p>{r.from} → {r.type.replace(/-/g, ' ')} → {r.to}</p>
-            </div>
-          ))}
-          {delta.riskChange && (
-            <div className={styles.changeItem}>
-              <span className={styles.changeTagRisk}>↑ RISK CHANGE</span>
-              <p>{delta.riskChange.from || 'unknown'} → {delta.riskChange.to}</p>
-            </div>
-          )}
-          {delta.confidenceChange && (
-            <div className={styles.changeItem}>
-              <span className={styles.changeTagRisk}>CONFIDENCE CHANGE</span>
-              <p>{fmtPct(delta.confidenceChange.from)} → {fmtPct(delta.confidenceChange.to)}</p>
-            </div>
-          )}
-          {delta.resolvedMissing.map((m, i) => (
-            <div key={`rm-${i}`} className={styles.changeItem}>
-              <span className={styles.changeTagResolve}>✓ RESOLVED</span>
-              <p>{m.label}</p>
-            </div>
-          ))}
-          {delta.newMissing.map((m, i) => (
-            <div key={`nm-${i}`} className={styles.changeItem}>
-              <span className={styles.changeTagGap}>? NEW GAP</span>
-              <p>{m.label}</p>
-            </div>
-          ))}
-        </div>
-      )}
+//       {!hasChanges ? (
+//         <p className={styles.empty}>No new changes detected in this re-investigation.</p>
+//       ) : (
+//         <div className={styles.changeList}>
+//           {delta.newFindings.map((f, i) => (
+//             <div key={`nf-${i}`} className={styles.changeItem}>
+//               <span className={styles.changeTagAdd}>+ NEW FINDING</span>
+//               <p>{f.text}</p>
+//             </div>
+//           ))}
+//           {delta.newEntities.map((e, i) => (
+//             <div key={`ne-${i}`} className={styles.changeItem}>
+//               <span className={styles.changeTagAdd}>+ NEW ENTITY</span>
+//               <p>{e.type.replace(/_/g, ' ')}: {e.value}</p>
+//             </div>
+//           ))}
+//           {delta.newRelationships.map((r, i) => (
+//             <div key={`nr-${i}`} className={styles.changeItem}>
+//               <span className={styles.changeTagAdd}>+ NEW RELATIONSHIP</span>
+//               <p>{r.from} → {r.type.replace(/-/g, ' ')} → {r.to}</p>
+//             </div>
+//           ))}
+//           {delta.riskChange && (
+//             <div className={styles.changeItem}>
+//               <span className={styles.changeTagRisk}>↑ RISK CHANGE</span>
+//               <p>{delta.riskChange.from || 'unknown'} → {delta.riskChange.to}</p>
+//             </div>
+//           )}
+//           {delta.confidenceChange && (
+//             <div className={styles.changeItem}>
+//               <span className={styles.changeTagRisk}>CONFIDENCE CHANGE</span>
+//               <p>{fmtPct(delta.confidenceChange.from)} → {fmtPct(delta.confidenceChange.to)}</p>
+//             </div>
+//           )}
+//           {delta.resolvedMissing.map((m, i) => (
+//             <div key={`rm-${i}`} className={styles.changeItem}>
+//               <span className={styles.changeTagResolve}>✓ RESOLVED</span>
+//               <p>{m.label}</p>
+//             </div>
+//           ))}
+//           {delta.newMissing.map((m, i) => (
+//             <div key={`nm-${i}`} className={styles.changeItem}>
+//               <span className={styles.changeTagGap}>? NEW GAP</span>
+//               <p>{m.label}</p>
+//             </div>
+//           ))}
+//         </div>
+//       )}
 
-      {versions.length > 1 && (
-        <button type="button" className={styles.linkBtn} onClick={() => setExpanded((v) => !v)}>
-          {expanded ? 'Hide full comparison' : 'View Full Comparison'}
-        </button>
-      )}
+//       {versions.length > 1 && (
+//         <button type="button" className={styles.linkBtn} onClick={() => setExpanded((v) => !v)}>
+//           {expanded ? 'Hide full comparison' : 'View Full Comparison'}
+//         </button>
+//       )}
 
-      {expanded && <FullComparison versions={versions} />}
-    </section>
-  )
-}
+//       {expanded && <FullComparison versions={versions} />}
+//     </section>
+//   )
+// }
 
 function FullComparison({ versions }) {
   const curr = versions[versions.length - 1]

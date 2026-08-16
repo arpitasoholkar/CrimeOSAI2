@@ -36,6 +36,14 @@ const evidenceSchema = new mongoose.Schema(
       pan_numbers: { type: [String], default: [] },
       aadhaar_numbers: { type: [String], default: [] },
       vehicle_numbers: { type: [String], default: [] },
+      // Physical places/addresses mentioned in the complaint text --
+      // this is what feeds the Geographic Intelligence map's "ADDRESS"
+      // entity type (see crimeos-brain/src/investigationState.js
+      // EVIDENCE_ENTITY_MAP). Without a declared field here, Mongoose's
+      // strict-by-default sub-schema silently dropped it on save even
+      // after the extraction side started producing it -- the map
+      // stayed empty for every case regardless.
+      addresses: { type: [String], default: [] },
       amounts: {
         type: [
           {
