@@ -176,7 +176,10 @@ router.post("/google", async (req, res) => {
       user = await User.findOne({ email });
       if (user && !user.googleId) {
         user.googleId = payload.sub;
-        if (!user.avatarUrl && payload.picture) user.avatarUrl = payload.picture;
+        // Deliberately not auto-filling avatarUrl from the Google
+        // picture here -- new/linked accounts default to the initials
+        // avatar, and the person can upload their own photo from
+        // Profile if they want one.
       }
     }
 
@@ -189,7 +192,7 @@ router.post("/google", async (req, res) => {
         provider: "google",
         googleId: payload.sub,
         name: payload.name || username,
-        avatarUrl: payload.picture || null,
+        avatarUrl: null,
       });
     }
 

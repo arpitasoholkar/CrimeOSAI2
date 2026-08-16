@@ -28,6 +28,15 @@ function getInitials(name) {
 
 const BACKEND_ORIGIN = 'http://localhost:3000'
 
+// See Sidebar.jsx -- avatarUrl can be a relative backend path or (for
+// some older Google accounts) an absolute external URL; only the
+// relative case needs our origin prefixed.
+function resolveAvatarSrc(avatarUrl) {
+  if (!avatarUrl) return null
+  if (/^https?:\/\//i.test(avatarUrl)) return avatarUrl
+  return `${BACKEND_ORIGIN}${avatarUrl}`
+}
+
 export default function Profile() {
   const { user, logout, updateUser } = useAuth()
   const navigate = useNavigate()
@@ -135,7 +144,7 @@ export default function Profile() {
     navigate('/login', { replace: true })
   }
 
-  const avatarSrc = form.avatarUrl ? `${BACKEND_ORIGIN}${form.avatarUrl}` : null
+  const avatarSrc = resolveAvatarSrc(form.avatarUrl)
 
   return (
     <div className={styles.layout}>

@@ -41,6 +41,16 @@ function getInitials(name) {
 
 const BACKEND_ORIGIN = 'http://localhost:3000'
 
+// avatarUrl is normally a relative "/uploads/avatars/..." path served by
+// our own backend, but some accounts (e.g. older Google sign-ins) may
+// have an absolute external URL stored -- don't prefix those with our
+// origin or the <img> src ends up mangled and just shows a broken image.
+function resolveAvatarSrc(avatarUrl) {
+  if (!avatarUrl) return null
+  if (/^https?:\/\//i.test(avatarUrl)) return avatarUrl
+  return `${BACKEND_ORIGIN}${avatarUrl}`
+}
+
 function SidebarContent({ onNavigate }) {
   const { theme, toggleTheme } = useTheme()
   const { user, logout } = useAuth()
@@ -82,7 +92,7 @@ function SidebarContent({ onNavigate }) {
     navigate('/login', { replace: true })
   }
 
-  const avatarSrc = user?.avatarUrl ? `${BACKEND_ORIGIN}${user.avatarUrl}` : null
+  const avatarSrc = resolveAvatarSrc(user?.avatarUrl)
 
   return (
     <>
