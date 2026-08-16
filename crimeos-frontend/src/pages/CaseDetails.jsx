@@ -822,7 +822,7 @@ function HistoryPanel({ versions }) {
       <h3 className={styles.sectionTitle}><HistoryIcon width={15} height={15} /> AI Investigation History</h3>
       <div className={styles.historyList}>
         {[...versions].reverse().map((v, i) => (
-          <div key={v.version} className={styles.historyItem}>
+          <div key={`${v.version}-${i}`} className={styles.historyItem}>
             <div className={styles.historyDot} />
             <div>
               <p className={styles.historyTitle}>
