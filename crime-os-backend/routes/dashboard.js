@@ -171,9 +171,18 @@ router.get("/cases", requireAuth, async (req, res) => {
     const shape = (c) => {
       const chips = evidenceChips(c);
       const isInvestigator = (c.investigators || []).includes(username);
-      const hasPendingRequest = !isInvestigator && (c.accessRequests || []).some(
-        (r) => r.requesterUsername === username && r.status === "pending"
-      );
+      // Most recent request this user made on this case (by requestedAt),
+      // so we know their *current* status -- not just whether one happens
+      // to still be pending. Once a request is rejected we want the
+      // frontend to show that instead of quietly falling back to a fresh
+      // "Request Access" button.
+      const ownRequests = !isInvestigator
+        ? (c.accessRequests || []).filter((r) => r.requesterUsername === username)
+        : [];
+      const latestOwnRequest = ownRequests.length
+        ? ownRequests.reduce((a, b) => (new Date(b.requestedAt) > new Date(a.requestedAt) ? b : a))
+        : null;
+      const myAccessRequestStatus = latestOwnRequest ? latestOwnRequest.status : null;
       return {
         id: c.case_id,
         title: c.title || "Untitled Case",
@@ -183,7 +192,8 @@ router.get("/cases", requireAuth, async (req, res) => {
         risk: riskLabel(c.severity),
         updated: timeAgo(c.updatedAt),
         isInvestigator,
-        hasPendingRequest,
+        hasPendingRequest: myAccessRequestStatus === "pending",
+        myAccessRequestStatus,
       };
     };
 

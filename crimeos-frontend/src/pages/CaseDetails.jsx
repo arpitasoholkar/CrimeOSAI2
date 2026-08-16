@@ -60,6 +60,7 @@ export default function CaseDetails() {
 
   const [caseDoc, setCaseDoc] = useState(null)
   const [isInvestigator, setIsInvestigator] = useState(true)
+  const [requestStatus, setRequestStatus] = useState(null)
   const [timeline, setTimeline] = useState([])
   const [similarCases, setSimilarCases] = useState({ status: 'loading', data: [] })
   const [error, setError] = useState(null)
@@ -68,12 +69,12 @@ export default function CaseDetails() {
   const [actionError, setActionError] = useState(null)
   const [compareVersion, setCompareVersion] = useState(null)
   const [requesting, setRequesting] = useState(false)
-  const [requested, setRequested] = useState(false)
 
   const loadCase = useCallback(() => {
     return apiBackend.get(`/cases/${caseId}`).then((res) => {
       setCaseDoc(res.data.case)
       setIsInvestigator(res.data.isInvestigator !== false)
+      setRequestStatus(res.data.myAccessRequestStatus ?? null)
     })
   }, [caseId])
 
@@ -103,7 +104,7 @@ export default function CaseDetails() {
     setRequesting(true)
     try {
       await apiBackend.post(`/cases/${caseId}/access-request`)
-      setRequested(true)
+      setRequestStatus('pending')
     } catch (err) {
       setActionError(err.response?.data?.message || 'Could not send the access request.')
     } finally {
@@ -163,8 +164,12 @@ export default function CaseDetails() {
             Request access from the lead investigator to view evidence, findings, and the full case record.
           </p>
           {actionError && <p className={styles.actionError} style={{ marginBottom: 12 }}>{actionError}</p>}
-          {requested ? (
+          {requestStatus === 'pending' ? (
             <span className={styles.statusBadge}>Access Requested</span>
+          ) : requestStatus === 'rejected' ? (
+            <span className={styles.statusBadge} style={{ color: 'var(--danger)', background: 'var(--danger-soft)' }}>
+              Access Rejected
+            </span>
           ) : (
             <button type="button" className={styles.secondaryBtn} disabled={requesting} onClick={handleRequestAccess}>
               {requesting ? 'Requesting…' : 'Request Access'}

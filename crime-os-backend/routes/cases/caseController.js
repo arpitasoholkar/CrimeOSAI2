@@ -181,16 +181,19 @@ const getCaseById = async (req, res) => {
     // etc). The frontend uses this to show a locked state with a
     // "Request Access" action rather than the full case UI.
     if (!isInvestigator) {
-      const pendingRequest = username
-        ? caseData.accessRequests.find(
-            (r) => r.requesterUsername === username && r.status === "pending"
-          )
+      const ownRequests = username
+        ? caseData.accessRequests.filter((r) => r.requesterUsername === username)
+        : [];
+      const latestOwnRequest = ownRequests.length
+        ? ownRequests.reduce((a, b) => (new Date(b.requestedAt) > new Date(a.requestedAt) ? b : a))
         : null;
+      const myAccessRequestStatus = latestOwnRequest ? latestOwnRequest.status : null;
 
       return res.status(200).json({
         success: true,
         isInvestigator: false,
-        hasPendingRequest: !!pendingRequest,
+        hasPendingRequest: myAccessRequestStatus === "pending",
+        myAccessRequestStatus,
         case: {
           case_id: caseData.case_id,
           title: caseData.title,

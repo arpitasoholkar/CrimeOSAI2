@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { FileTextIcon, ImageIcon, AudioIcon, ChevronRightIcon, LockIcon, CheckCircleIcon } from '../Icons/Icons'
+import { FileTextIcon, ImageIcon, AudioIcon, ChevronRightIcon, LockIcon, CheckCircleIcon, XCircleIcon } from '../Icons/Icons'
 import { apiBackend } from '../../api/api'
 import styles from './CaseCard.module.css'
 
@@ -23,18 +23,19 @@ const EVIDENCE_ICON = {
 }
 
 export default function CaseCard({ caseItem, index = 0, onOpen }) {
-  const { id, title, status, evidence, extraEvidence, risk, updated, isInvestigator, hasPendingRequest } = caseItem
-  const [pending, setPending] = useState(hasPendingRequest)
+  const { id, title, status, evidence, extraEvidence, risk, updated, isInvestigator, myAccessRequestStatus } = caseItem
+  // 'pending' | 'approved' | 'rejected' | null — reflects the *latest*
+  // request this user made, so a rejection sticks instead of quietly
+  // reverting to a fresh "Request Access" button on the next load.
+  const [requestStatus, setRequestStatus] = useState(myAccessRequestStatus ?? null)
   const [requesting, setRequesting] = useState(false)
-  const [justRequested, setJustRequested] = useState(false)
 
   const handleRequestAccess = async (e) => {
     e.stopPropagation()
     setRequesting(true)
     try {
       await apiBackend.post(`/cases/${id}/access-request`)
-      setPending(true)
-      setJustRequested(true)
+      setRequestStatus('pending')
     } catch (err) {
       console.error(err)
     } finally {
@@ -84,10 +85,15 @@ export default function CaseCard({ caseItem, index = 0, onOpen }) {
       </div>
 
       {isInvestigator === false ? (
-        pending ? (
+        requestStatus === 'pending' ? (
           <span className={styles.pendingLabel}>
-            {justRequested ? <CheckCircleIcon width={13} height={13} /> : <LockIcon width={13} height={13} />}
-            {justRequested ? 'Requested' : 'Request Pending'}
+            <LockIcon width={13} height={13} />
+            Request Pending
+          </span>
+        ) : requestStatus === 'rejected' ? (
+          <span className={styles.rejectedLabel}>
+            <XCircleIcon width={13} height={13} />
+            Access Rejected
           </span>
         ) : (
           <button
