@@ -313,7 +313,7 @@ async function seed() {
     `${createdCaseIds.length - 6} are pending bank requests (sent/overdue) — check /mock-bank.`
   );
   console.log("Shared identifiers reused across cases (for cross-case links):");
-  console.log("  UPI IDs:", UPI_IDS.join(", "));
+  console.log("  UPI ID's:", UPI_IDS.join(", "));
   console.log("  Phones :", PHONES.join(", "));
   console.log("  Accts  :", ACCOUNTS.join(", "));
 
