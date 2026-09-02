@@ -2838,6 +2838,43 @@ export default function CaseDetails() {
     apiBackend.get(`/cases/${caseId}/timeline`).then((res) => setTimeline(res.data.timeline || [])).catch(() => setTimeline([]))
   }, [caseId, canViewFullCase])
 
+  // Poll for updates that land from another persona/tab (e.g. a bank
+  // officer submitting a response via /mock-bank). We only poll the
+  // lightweight /timeline endpoint -- if its length grows, something new
+  // landed (new audit entry = new response/evidence/reinvestigation), so
+  // we surface a toast instead of silently refetching the whole case
+  // (which would yank the officer's scroll position / open panels).
+  const [newActivity, setNewActivity] = useState(false)
+  const timelineLenRef = useRef(0)
+
+  useEffect(() => {
+    timelineLenRef.current = timeline.length
+  }, [timeline])
+
+  useEffect(() => {
+    if (!canViewFullCase) return
+    const poll = () => {
+      if (document.hidden) return
+      apiBackend
+        .get(`/cases/${caseId}/timeline`)
+        .then((res) => {
+          const len = (res.data.timeline || []).length
+          if (len > timelineLenRef.current) setNewActivity(true)
+        })
+        .catch(() => {})
+    }
+    const id = window.setInterval(poll, 8000)
+    return () => window.clearInterval(id)
+  }, [caseId, canViewFullCase])
+
+  const handleRefreshActivity = async () => {
+    setNewActivity(false)
+    await Promise.all([
+      loadCase(),
+      apiBackend.get(`/cases/${caseId}/timeline`).then((res) => setTimeline(res.data.timeline || [])),
+    ])
+  }
+
   useEffect(() => {
     if (!canViewFullCase) return
     setSimilarCases({ status: 'loading', data: [] })
@@ -2950,6 +2987,12 @@ export default function CaseDetails() {
       />
 
       {actionError && <p className={styles.actionError}>{actionError}</p>}
+
+      {newActivity && (
+        <button type="button" className={styles.newActivityBanner} onClick={handleRefreshActivity}>
+          New activity on this case — click to refresh
+        </button>
+      )}
 
       {caseDoc.isCompleted && caseDoc.resolution && (
         <ResolutionPanel resolution={caseDoc.resolution} />

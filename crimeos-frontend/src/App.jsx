@@ -16,6 +16,7 @@ import Settings from './pages/Settings'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Profile from './pages/Profile'
+import MockBank from './pages/MockBank'
 import styles from './App.module.css'
 
 function AppShell() {
@@ -57,9 +58,15 @@ export default function App() {
   // Shown once at app boot — before the router decides whether to land on
   // /login or the dashboard. Covers every full page load/refresh, matching
   // the intended sequence: TRINETRA loader -> Login -> Dashboard.
+  //
+  // /mock-bank is a separate, unauthenticated persona (a bank compliance
+  // officer, opened in its own tab with no login step) and isn't part of
+  // the investigator app at all, so it skips the investigator-branded
+  // boot sequence entirely.
   const [booting, setBooting] = useState(true)
+  const isMockBank = window.location.pathname.startsWith('/mock-bank')
 
-  if (booting) {
+  if (booting && !isMockBank) {
     return <TrinetraLoader onComplete={() => setBooting(false)} />
   }
 
@@ -67,6 +74,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/mock-bank" element={<MockBank />} />
       <Route
         path="/*"
         element={
