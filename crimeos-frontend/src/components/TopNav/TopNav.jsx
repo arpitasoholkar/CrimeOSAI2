@@ -126,7 +126,7 @@ export default function TopNav({ onMenuClick, onNewCase }) {
           <input
             ref={inputRef}
             type="text"
-            placeholder="Search cases, persons, phone, UPI, email…"
+            placeholder="Search cases"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
