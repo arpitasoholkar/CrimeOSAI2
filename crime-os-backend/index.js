@@ -17,6 +17,7 @@ import summaryRoutes from "./routes/summary.js";
 import dashboardRouter from "./routes/dashboard.js";
 import authRoutes from "./routes/auth/authRoutes.js";
 import userRoutes from "./routes/users/userRoutes.js";
+import bankRoutes from "./routes/bank/bankRoutes.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -54,6 +55,7 @@ app.use("/cases", summaryRoutes);
 app.use("/api", dashboardRouter);
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/bank", bankRoutes); // mock bank portal -- see routes/bank/bankRoutes.js
 
 app.get("/health", (req, res) => {
   res.json({
