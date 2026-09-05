@@ -20,6 +20,7 @@ import {
 import styles from './Profile.module.css'
 import useDocumentTitle from '../hooks/useDocumentTitle'
 import { compressImage } from '../utils/compressImage'
+import { useToast } from '../context/ToastContext'
 
 function getInitials(name) {
   if (!name) return '?'
@@ -43,6 +44,7 @@ export default function Profile() {
   useDocumentTitle('Profile')
 
   const { user, logout, updateUser } = useAuth()
+  const toast = useToast()
   const navigate = useNavigate()
   const fileInputRef = useRef(null)
 
@@ -98,9 +100,12 @@ export default function Profile() {
       updateUser(res.data.user)
       setEditing(false)
       setSuccess('Profile updated.')
+      toast.success('Profile updated.')
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to save changes.')
+      const msg = err.response?.data?.error || 'Failed to save changes.'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setSaving(false)
     }
@@ -122,8 +127,11 @@ export default function Profile() {
       })
       updateUser(res.data.user)
       setForm((f) => ({ ...f, avatarUrl: res.data.user.avatarUrl }))
+      toast.success('Photo updated.')
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to upload photo.')
+      const msg = err.response?.data?.error || 'Failed to upload photo.'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setUploading(false)
       e.target.value = ''
