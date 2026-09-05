@@ -2740,6 +2740,8 @@ import LocationMap from '../components/CaseIntelligence/LocationMap'
 import EyeLoader from '../components/EyeLoader/EyeLoader'
 import styles from './CaseDetails.module.css'
 import useDocumentTitle from '../hooks/useDocumentTitle'
+import CopyButton from '../components/CopyButton/CopyButton'
+import AuditTrail from '../components/AuditTrail/AuditTrail'
 
 const EVIDENCE_ICON = { pdf: FileTextIcon, image: ImageIcon, audio: AudioIcon, text: FileTextIcon }
 
@@ -2930,7 +2932,10 @@ export default function CaseDetails() {
       >
         <div className={styles.header}>
           <div>
-            <p className={styles.caseId}>{caseDoc.case_id}</p>
+            <p className={styles.caseId}>
+              {caseDoc.case_id}
+              <CopyButton value={caseDoc.case_id} label="Copy case ID" />
+            </p>
             <h2 className={styles.title}>{caseDoc.title || 'Untitled Case'}</h2>
             <div className={styles.headerMeta}>
               <span className={styles.statusBadge}>{STATUS_LABEL[caseDoc.status] || caseDoc.status}</span>
@@ -3038,6 +3043,8 @@ export default function CaseDetails() {
 
       <TimelinePanel timeline={timeline} />
 
+      <AuditTrail caseId={caseId} timeline={timeline} />
+
       <SimilarCasesPanel similarCases={similarCases} />
 
       <HistoryPanel versions={versions} compareVersion={compareVersion} setCompareVersion={setCompareVersion} />
@@ -3070,7 +3077,10 @@ function CaseHeader({ caseDoc, latest, isInvestigator, isArchivedView, onAddEvid
   return (
     <div className={styles.header}>
       <div>
-        <p className={styles.caseId}>{caseDoc.case_id}</p>
+        <p className={styles.caseId}>
+          {caseDoc.case_id}
+          <CopyButton value={caseDoc.case_id} label="Copy case ID" />
+        </p>
         <h2 className={styles.title}>{caseDoc.title || 'Untitled Case'}</h2>
         <div className={styles.headerMeta}>
           <span className={styles.statusBadge}>

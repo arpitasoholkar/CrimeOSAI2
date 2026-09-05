@@ -6,12 +6,14 @@ import { useAuth } from '../context/AuthContext'
 import { UploadCloudIcon, FileTextIcon, CheckCircleIcon, UserIcon, TrashIcon, ImageIcon, AudioIcon } from '../components/Icons/Icons'
 import styles from './NewCase.module.css'
 import useDocumentTitle from '../hooks/useDocumentTitle'
+import { useToast } from '../context/ToastContext'
 
 export default function NewCase() {
   useDocumentTitle('New Case')
 
   const navigate = useNavigate()
   const { user } = useAuth()
+  const toast = useToast()
   const [searchParams] = useSearchParams()
   const [mode, setMode] = useState('text') // 'text' | 'file'
   const [text, setText] = useState('')
@@ -90,8 +92,11 @@ export default function NewCase() {
       setText('')
       setFiles([])
       setCaseName('')
+      toast.success('Case submitted successfully.')
     } catch (err) {
-      setError(err.response?.data?.error || 'Something went wrong submitting this evidence.')
+      const msg = err.response?.data?.error || 'Something went wrong submitting this evidence.'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setSubmitting(false)
     }

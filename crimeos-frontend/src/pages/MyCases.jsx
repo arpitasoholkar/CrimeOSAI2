@@ -6,6 +6,7 @@ import { FolderIcon } from '../components/Icons/Icons'
 import { apiBackend } from '../api/api'
 import styles from './Cases.module.css'
 import useDocumentTitle from '../hooks/useDocumentTitle'
+import { SkeletonRows } from '../components/Skeleton/Skeleton'
 
 // The backend only sends case_id/title/status/severity/updatedAt for
 // /cases/my (no evidence breakdown), so map into the shape CaseCard
@@ -90,6 +91,8 @@ export default function MyCases() {
 
         {error && <div className={styles.stateMsg}>{error}</div>}
 
+        {!error && loading && <SkeletonRows count={4} />}
+
         {!error && !loading && cases.length === 0 && (
           <div className={styles.emptyState}>
             <FolderIcon width={28} height={28} />
@@ -97,7 +100,7 @@ export default function MyCases() {
           </div>
         )}
 
-        {!error && cases.length > 0 && (
+        {!error && !loading && cases.length > 0 && (
           <div className={styles.caseList}>
             {cases.map((c, i) => (
               <CaseCard key={c.case_id} caseItem={toCaseItem(c)} index={i} onOpen={(id) => navigate(`/cases/${id}`)} />

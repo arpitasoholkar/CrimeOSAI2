@@ -5,6 +5,7 @@ import { apiBackend } from '../api/api'
 import { CheckIcon, XCircleIcon, HourglassIcon } from '../components/Icons/Icons'
 import styles from './AccessRequests.module.css'
 import useDocumentTitle from '../hooks/useDocumentTitle'
+import { useToast } from '../context/ToastContext'
 
 const STATUS_STYLE = {
   pending: 'statusPending',
@@ -19,6 +20,7 @@ function fmtDate(d) {
 
 export default function AccessRequests() {
   useDocumentTitle('Access Requests')
+  const toast = useToast()
 
   const [mine, setMine] = useState([])
   const [incoming, setIncoming] = useState([])
@@ -51,8 +53,11 @@ export default function AccessRequests() {
     try {
       await apiBackend.post(`/cases/${caseId}/access-request/${requestId}/${action}`)
       await load()
+      toast.success(action === 'approve' ? 'Request approved.' : 'Request rejected.')
     } catch (err) {
-      setActionError(err.response?.data?.message || `Could not ${action} this request.`)
+      const msg = err.response?.data?.message || `Could not ${action} this request.`
+      setActionError(msg)
+      toast.error(msg)
     } finally {
       setBusyId(null)
     }

@@ -12,6 +12,7 @@ import {
 } from '../components/Icons/Icons'
 import styles from './MockBank.module.css'
 import useDocumentTitle from '../hooks/useDocumentTitle'
+import { useToast } from '../context/ToastContext'
 
 // /mock-bank -- the "bank compliance officer" persona.
 //
@@ -42,6 +43,7 @@ function emptyFormData() {
 
 export default function MockBank() {
   useDocumentTitle('Bank Compliance Portal')
+  const toast = useToast()
 
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
@@ -116,8 +118,11 @@ export default function MockBank() {
         { officerName: officerName.trim() || undefined, notes: notes.trim() || undefined, data }
       )
       setSent(true)
+      toast.success('Response sent to the investigator.')
     } catch (err) {
-      setSubmitError(err.response?.data?.message || 'Could not send the response. Please try again.')
+      const msg = err.response?.data?.message || 'Could not send the response. Please try again.'
+      setSubmitError(msg)
+      toast.error(msg)
     } finally {
       setSubmitting(false)
     }
