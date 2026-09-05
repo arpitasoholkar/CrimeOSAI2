@@ -19,6 +19,9 @@ export default function ActivityFeed({ items }) {
       </div>
 
       <ol className={styles.timeline}>
+        {items.length === 0 && (
+          <li className={styles.emptyState}>No activity yet today.</li>
+        )}
         {items.map((item, i) => {
           const meta = TYPE_META[item.type] ?? TYPE_META.case_created
           const Icon = meta.icon

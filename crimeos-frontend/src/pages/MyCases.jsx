@@ -5,6 +5,7 @@ import CaseCard from '../components/CaseCard/CaseCard'
 import { FolderIcon } from '../components/Icons/Icons'
 import { apiBackend } from '../api/api'
 import styles from './Cases.module.css'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 
 // The backend only sends case_id/title/status/severity/updatedAt for
 // /cases/my (no evidence breakdown), so map into the shape CaseCard
@@ -40,6 +41,8 @@ const RISK_LABEL = {
 }
 
 export default function MyCases() {
+  useDocumentTitle('My Cases')
+
   const navigate = useNavigate()
   const [cases, setCases] = useState([])
   const [loading, setLoading] = useState(true)

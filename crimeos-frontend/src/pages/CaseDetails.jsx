@@ -2739,6 +2739,7 @@ import EntityGraph from '../components/CaseIntelligence/EntityGraph'
 import LocationMap from '../components/CaseIntelligence/LocationMap'
 import EyeLoader from '../components/EyeLoader/EyeLoader'
 import styles from './CaseDetails.module.css'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 
 const EVIDENCE_ICON = { pdf: FileTextIcon, image: ImageIcon, audio: AudioIcon, text: FileTextIcon }
 
@@ -2792,6 +2793,7 @@ function fmtDate(d) {
 }
 
 export default function CaseDetails() {
+  useDocumentTitle('Case Details')
   const { caseId } = useParams()
   const navigate = useNavigate()
 

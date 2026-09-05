@@ -2,11 +2,14 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { SearchIcon, GridIcon, FolderIcon, ShieldLockIcon } from '../components/Icons/Icons'
 import styles from './NotFound.module.css'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 
 // Shown for any route that doesn't match inside the authenticated shell.
 // Styled to match the rest of the product (HUD corner brackets, scan
 // grid, monospace "case stamp") instead of a generic error screen.
 export default function NotFound() {
+  useDocumentTitle('Page Not Found')
+
   const navigate = useNavigate()
 
   return (

@@ -5,9 +5,11 @@ import StatCard from '../components/StatCard/StatCard'
 import CaseCard from '../components/CaseCard/CaseCard'
 import ActivityFeed from '../components/ActivityFeed/ActivityFeed'
 import QuickActions from '../components/QuickActions/QuickActions'
+import { FolderIcon } from '../components/Icons/Icons'
 import { apiBackend } from '../api/api'
 import { quickActions } from '../data/mockData'
 import styles from './Dashboard.module.css'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 
 // Presentation-only metadata for each stat -- the backend only knows counts,
 // not which icon/color a count should render with.
@@ -19,6 +21,8 @@ const STAT_CONFIG = [
 ]
 
 export default function Dashboard() {
+  useDocumentTitle('Dashboard')
+
   const navigate = useNavigate()
   const [stats, setStats] = useState(null)
   const [recentCases, setRecentCases] = useState([])
@@ -68,9 +72,16 @@ export default function Dashboard() {
           </div>
 
           <div className={styles.caseList}>
-            {recentCases.map((c, i) => (
-              <CaseCard key={c.id} caseItem={c} index={i} onOpen={(id) => navigate(`/cases/${id}`)} />
-            ))}
+            {recentCases.length === 0 ? (
+              <div className={styles.emptyState}>
+                <FolderIcon width={28} height={28} />
+                <p>No investigations yet. Create a case to get started.</p>
+              </div>
+            ) : (
+              recentCases.map((c, i) => (
+                <CaseCard key={c.id} caseItem={c} index={i} onOpen={(id) => navigate(`/cases/${id}`)} />
+              ))
+            )}
           </div>
         </motion.section>
       </div>

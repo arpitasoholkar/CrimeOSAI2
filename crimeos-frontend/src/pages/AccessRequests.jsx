@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { apiBackend } from '../api/api'
 import { CheckIcon, XCircleIcon, HourglassIcon } from '../components/Icons/Icons'
 import styles from './AccessRequests.module.css'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 
 const STATUS_STYLE = {
   pending: 'statusPending',
@@ -17,6 +18,8 @@ function fmtDate(d) {
 }
 
 export default function AccessRequests() {
+  useDocumentTitle('Access Requests')
+
   const [mine, setMine] = useState([])
   const [incoming, setIncoming] = useState([])
   const [loading, setLoading] = useState(true)

@@ -11,6 +11,7 @@ import {
   LockIcon,
 } from '../components/Icons/Icons'
 import styles from './MockBank.module.css'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 
 // /mock-bank -- the "bank compliance officer" persona.
 //
@@ -40,6 +41,8 @@ function emptyFormData() {
 }
 
 export default function MockBank() {
+  useDocumentTitle('Bank Compliance Portal')
+
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)

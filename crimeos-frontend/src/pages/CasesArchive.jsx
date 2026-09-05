@@ -5,6 +5,7 @@ import CaseCard from '../components/CaseCard/CaseCard'
 import { ArchiveIcon } from '../components/Icons/Icons'
 import { apiBackend } from '../api/api'
 import styles from './Cases.module.css'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 
 const OUTCOME_LABEL = {
   culprit_identified: 'Culprit Identified',
@@ -35,6 +36,8 @@ function toCaseItem(c) {
 }
 
 export default function CasesArchive() {
+  useDocumentTitle('Cases Archive')
+
   const navigate = useNavigate()
   const [cases, setCases] = useState([])
   const [loading, setLoading] = useState(true)

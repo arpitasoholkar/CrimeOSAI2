@@ -5,8 +5,11 @@ import { apiBackend } from '../api/api'
 import { useAuth } from '../context/AuthContext'
 import { UploadCloudIcon, FileTextIcon, CheckCircleIcon, UserIcon, TrashIcon, ImageIcon, AudioIcon } from '../components/Icons/Icons'
 import styles from './NewCase.module.css'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 
 export default function NewCase() {
+  useDocumentTitle('New Case')
+
   const navigate = useNavigate()
   const { user } = useAuth()
   const [searchParams] = useSearchParams()

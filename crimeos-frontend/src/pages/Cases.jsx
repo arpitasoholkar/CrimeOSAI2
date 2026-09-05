@@ -5,6 +5,7 @@ import CaseCard from '../components/CaseCard/CaseCard'
 import { SearchIcon, ChevronRightIcon, FolderIcon } from '../components/Icons/Icons'
 import { apiBackend } from '../api/api'
 import styles from './Cases.module.css'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 
 const FILTERS = [
   { key: 'all', label: 'All Cases' },
@@ -16,6 +17,8 @@ const FILTERS = [
 const PAGE_SIZE = 12
 
 export default function Cases() {
+  useDocumentTitle('Cases')
+
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
 

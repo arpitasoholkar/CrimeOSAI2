@@ -16,6 +16,7 @@ import {
   LogOutIcon,
 } from '../components/Icons/Icons'
 import styles from './Settings.module.css'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 
 const PREFS_KEY = 'trinetra-notification-prefs'
 
@@ -51,6 +52,8 @@ function Toggle({ checked, onChange, label }) {
 }
 
 export default function Settings() {
+  useDocumentTitle('Settings')
+
   const { theme, setTheme } = useTheme()
   const { user, logout } = useAuth()
   const navigate = useNavigate()
@@ -153,7 +156,11 @@ export default function Settings() {
         <div className={styles.accountGrid}>
           <div className={styles.accountRow}>
             <MailIcon width={14} height={14} />
-            <span>{user?.email || '—'}</span>
+            <span>
+              {user?.email ? (
+                <a href={`mailto:${user.email}`} className={styles.accountLink}>{user.email}</a>
+              ) : '—'}
+            </span>
           </div>
           <div className={styles.accountRow}>
             <BadgeIcon width={14} height={14} />

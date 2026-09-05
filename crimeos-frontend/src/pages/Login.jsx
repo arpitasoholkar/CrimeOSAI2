@@ -5,8 +5,11 @@ import { GoogleLogin } from '@react-oauth/google'
 import { useAuth } from '../context/AuthContext'
 import { EyeIcon, ShieldLockIcon } from '../components/Icons/Icons'
 import styles from './Login.module.css'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 
 export default function Login() {
+  useDocumentTitle('Login')
+
   const { loginWithGoogle } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()

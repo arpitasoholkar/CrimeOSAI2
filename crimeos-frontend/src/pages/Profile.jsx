@@ -18,6 +18,8 @@ import {
   XCircleIcon,
 } from '../components/Icons/Icons'
 import styles from './Profile.module.css'
+import useDocumentTitle from '../hooks/useDocumentTitle'
+import { compressImage } from '../utils/compressImage'
 
 function getInitials(name) {
   if (!name) return '?'
@@ -38,6 +40,8 @@ function resolveAvatarSrc(avatarUrl) {
 }
 
 export default function Profile() {
+  useDocumentTitle('Profile')
+
   const { user, logout, updateUser } = useAuth()
   const navigate = useNavigate()
   const fileInputRef = useRef(null)
@@ -110,8 +114,9 @@ export default function Profile() {
     setUploading(true)
     setError('')
     try {
+      const compressed = await compressImage(file)
       const data = new FormData()
-      data.append('avatar', file)
+      data.append('avatar', compressed)
       const res = await apiBackend.post('/api/users/me/avatar', data, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
@@ -280,7 +285,11 @@ export default function Profile() {
             <span className={styles.fieldLabel}>
               <MailIcon width={13} height={13} /> Email
             </span>
-            <p className={styles.fieldValue}>{user.email}</p>
+            <p className={styles.fieldValue}>
+              {user.email ? (
+                <a href={`mailto:${user.email}`} className={styles.fieldLink}>{user.email}</a>
+              ) : '—'}
+            </p>
           </label>
 
           <label className={styles.field}>
@@ -290,7 +299,11 @@ export default function Profile() {
             {editing ? (
               <input value={form.phone || ''} onChange={handleFieldChange('phone')} placeholder="Add a phone number" />
             ) : (
-              <p className={styles.fieldValue}>{user.phone || '—'}</p>
+              <p className={styles.fieldValue}>
+                {user.phone ? (
+                  <a href={`tel:${user.phone}`} className={styles.fieldLink}>{user.phone}</a>
+                ) : '—'}
+              </p>
             )}
           </label>
 
