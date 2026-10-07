@@ -16,7 +16,7 @@ const GEMINI_MODEL = "gemini-3.6-flash";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const PLACEHOLDER_VALUES = ["YOUR_GEMINI_API_KEY_HERE", "", undefined];
-const REQUEST_TIMEOUT_MS = 30_000;
+const REQUEST_TIMEOUT_MS = 120_000;
 
 const MIME_BY_EXTENSION = {
   ".mp3": "audio/mp3",
