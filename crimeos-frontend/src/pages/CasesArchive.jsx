@@ -5,6 +5,8 @@ import CaseCard from '../components/CaseCard/CaseCard'
 import { ArchiveIcon } from '../components/Icons/Icons'
 import { apiBackend } from '../api/api'
 import styles from './Cases.module.css'
+import useDocumentTitle from '../hooks/useDocumentTitle'
+import { SkeletonRows } from '../components/Skeleton/Skeleton'
 
 const OUTCOME_LABEL = {
   culprit_identified: 'Culprit Identified',
@@ -35,6 +37,8 @@ function toCaseItem(c) {
 }
 
 export default function CasesArchive() {
+  useDocumentTitle('Cases Archive')
+
   const navigate = useNavigate()
   const [cases, setCases] = useState([])
   const [loading, setLoading] = useState(true)
@@ -79,6 +83,8 @@ export default function CasesArchive() {
 
         {error && <div className={styles.stateMsg}>{error}</div>}
 
+        {!error && loading && <SkeletonRows count={4} />}
+
         {!error && !loading && cases.length === 0 && (
           <div className={styles.emptyState}>
             <ArchiveIcon width={28} height={28} />
@@ -86,7 +92,7 @@ export default function CasesArchive() {
           </div>
         )}
 
-        {!error && cases.length > 0 && (
+        {!error && !loading && cases.length > 0 && (
           <div className={styles.caseList}>
             {cases.map((c, i) => (
               <CaseCard key={c.case_id} caseItem={toCaseItem(c)} index={i} onOpen={(id) => navigate(`/cases/${id}`)} />

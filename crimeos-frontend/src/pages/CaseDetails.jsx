@@ -2739,6 +2739,9 @@ import EntityGraph from '../components/CaseIntelligence/EntityGraph'
 import LocationMap from '../components/CaseIntelligence/LocationMap'
 import EyeLoader from '../components/EyeLoader/EyeLoader'
 import styles from './CaseDetails.module.css'
+import useDocumentTitle from '../hooks/useDocumentTitle'
+import CopyButton from '../components/CopyButton/CopyButton'
+import AuditTrail from '../components/AuditTrail/AuditTrail'
 
 const EVIDENCE_ICON = { pdf: FileTextIcon, image: ImageIcon, audio: AudioIcon, text: FileTextIcon }
 
@@ -2792,6 +2795,7 @@ function fmtDate(d) {
 }
 
 export default function CaseDetails() {
+  useDocumentTitle('Case Details')
   const { caseId } = useParams()
   const navigate = useNavigate()
 
@@ -2837,6 +2841,43 @@ export default function CaseDetails() {
     if (!canViewFullCase) return
     apiBackend.get(`/cases/${caseId}/timeline`).then((res) => setTimeline(res.data.timeline || [])).catch(() => setTimeline([]))
   }, [caseId, canViewFullCase])
+
+  // Poll for updates that land from another persona/tab (e.g. a bank
+  // officer submitting a response via /mock-bank). We only poll the
+  // lightweight /timeline endpoint -- if its length grows, something new
+  // landed (new audit entry = new response/evidence/reinvestigation), so
+  // we surface a toast instead of silently refetching the whole case
+  // (which would yank the officer's scroll position / open panels).
+  const [newActivity, setNewActivity] = useState(false)
+  const timelineLenRef = useRef(0)
+
+  useEffect(() => {
+    timelineLenRef.current = timeline.length
+  }, [timeline])
+
+  useEffect(() => {
+    if (!canViewFullCase) return
+    const poll = () => {
+      if (document.hidden) return
+      apiBackend
+        .get(`/cases/${caseId}/timeline`)
+        .then((res) => {
+          const len = (res.data.timeline || []).length
+          if (len > timelineLenRef.current) setNewActivity(true)
+        })
+        .catch(() => {})
+    }
+    const id = window.setInterval(poll, 8000)
+    return () => window.clearInterval(id)
+  }, [caseId, canViewFullCase])
+
+  const handleRefreshActivity = async () => {
+    setNewActivity(false)
+    await Promise.all([
+      loadCase(),
+      apiBackend.get(`/cases/${caseId}/timeline`).then((res) => setTimeline(res.data.timeline || [])),
+    ])
+  }
 
   useEffect(() => {
     if (!canViewFullCase) return
@@ -2891,7 +2932,10 @@ export default function CaseDetails() {
       >
         <div className={styles.header}>
           <div>
-            <p className={styles.caseId}>{caseDoc.case_id}</p>
+            <p className={styles.caseId}>
+              {caseDoc.case_id}
+              <CopyButton value={caseDoc.case_id} label="Copy case ID" />
+            </p>
             <h2 className={styles.title}>{caseDoc.title || 'Untitled Case'}</h2>
             <div className={styles.headerMeta}>
               <span className={styles.statusBadge}>{STATUS_LABEL[caseDoc.status] || caseDoc.status}</span>
@@ -2951,6 +2995,12 @@ export default function CaseDetails() {
 
       {actionError && <p className={styles.actionError}>{actionError}</p>}
 
+      {newActivity && (
+        <button type="button" className={styles.newActivityBanner} onClick={handleRefreshActivity}>
+          New activity on this case — click to refresh
+        </button>
+      )}
+
       {caseDoc.isCompleted && caseDoc.resolution && (
         <ResolutionPanel resolution={caseDoc.resolution} />
       )}
@@ -2993,6 +3043,8 @@ export default function CaseDetails() {
 
       <TimelinePanel timeline={timeline} />
 
+      <AuditTrail caseId={caseId} timeline={timeline} />
+
       <SimilarCasesPanel similarCases={similarCases} />
 
       <HistoryPanel versions={versions} compareVersion={compareVersion} setCompareVersion={setCompareVersion} />
@@ -3025,7 +3077,10 @@ function CaseHeader({ caseDoc, latest, isInvestigator, isArchivedView, onAddEvid
   return (
     <div className={styles.header}>
       <div>
-        <p className={styles.caseId}>{caseDoc.case_id}</p>
+        <p className={styles.caseId}>
+          {caseDoc.case_id}
+          <CopyButton value={caseDoc.case_id} label="Copy case ID" />
+        </p>
         <h2 className={styles.title}>{caseDoc.title || 'Untitled Case'}</h2>
         <div className={styles.headerMeta}>
           <span className={styles.statusBadge}>

@@ -4,8 +4,11 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { apiBrain } from '../api/api'
 import { SparklesIcon, CheckCircleIcon, HourglassIcon, ChevronRightIcon } from '../components/Icons/Icons'
 import styles from './AIInvestigation.module.css'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 
 export default function AIInvestigation() {
+  useDocumentTitle('AI Investigation')
+
   const { caseId } = useParams()
   const navigate = useNavigate()
 

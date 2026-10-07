@@ -298,6 +298,15 @@
   word-break: break-word;
 }
 
+.fieldLink {
+  color: var(--accent, #4f8cff);
+  text-decoration: none;
+}
+
+.fieldLink:hover {
+  text-decoration: underline;
+}
+
 .field input,
 .field textarea {
   border: 1px solid var(--border);

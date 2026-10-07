@@ -4,8 +4,11 @@ import { motion } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
 import { ShieldIcon, UserIcon, MailIcon, LockIcon, BadgeIcon } from '../components/Icons/Icons'
 import styles from './Login.module.css'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 
 export default function Register() {
+  useDocumentTitle('Register')
+
   const { register } = useAuth()
   const navigate = useNavigate()
   const [form, setForm] = useState({ name: '', username: '', email: '', password: '', badgeNumber: '' })

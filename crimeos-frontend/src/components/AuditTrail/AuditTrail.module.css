@@ -1,0 +1,169 @@
+.panel {
+  border: 1px solid var(--border-soft, #212736);
+  border-radius: var(--radius-lg, 16px);
+  background: var(--card, #171c28);
+  overflow: hidden;
+}
+
+.header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: var(--text-primary);
+}
+
+.headerLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.subtitle {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.chevron {
+  color: var(--text-tertiary);
+  transition: transform 160ms var(--ease-out, ease);
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.body {
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--border-soft, #212736);
+}
+
+.verifyRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 0;
+  flex-wrap: wrap;
+}
+
+.verifyBtn {
+  padding: 8px 14px;
+  border-radius: var(--radius-md, 12px);
+  border: 1px solid var(--border, #2b3344);
+  background: var(--bg-elevated, #10141d);
+  color: var(--text-primary);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.verifyBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.statusBadge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 999px;
+}
+
+.statusValid {
+  color: var(--success, #2fbf71);
+  background: var(--success-soft, #103a2a);
+}
+
+.statusInvalid {
+  color: var(--danger, #ef4444);
+  background: var(--danger-soft, #3a1414);
+}
+
+.empty {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  padding: 12px 0;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.entry {
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 12px);
+  background: var(--bg-elevated, #10141d);
+  border: 1px solid var(--border-soft, #212736);
+}
+
+.entryTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.seq {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.action {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.time {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.actor {
+  margin: 4px 0 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.hashRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.hashLabel {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 10px;
+  width: 30px;
+  flex-shrink: 0;
+}
+
+.hashValue {
+  color: var(--text-secondary);
+}

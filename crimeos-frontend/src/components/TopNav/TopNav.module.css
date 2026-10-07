@@ -1,4 +1,4 @@
-.topnav {
+/* .topnav {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -191,6 +191,315 @@
   box-shadow: var(--shadow-md, var(--shadow-sm));
   overflow: hidden;
   z-index: 40;
+}
+
+.notifHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.notifCount {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.notifEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 28px 16px;
+  color: var(--text-tertiary);
+  font-size: 12.5px;
+  text-align: center;
+}
+
+.notifList {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.notifItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.notifItem:last-child {
+  border-bottom: none;
+}
+
+.notifItem:hover {
+  background: var(--bg);
+}
+
+.notifIcon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  margin-top: 1px;
+}
+
+.notifBody {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.notifText {
+  font-size: 12.5px;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.notifText strong {
+  font-weight: 700;
+}
+
+.notifTime {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.notifFooter {
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  border-top: 1px solid var(--border);
+  background: transparent;
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.notifFooter:hover {
+  background: var(--bg);
+} */
+
+
+.topnav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 28px;
+  flex-wrap: wrap;
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.menuBtn {
+  display: none;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text-primary);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.greeting {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 340px;
+  max-width: 46vw;
+  padding: 10px 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text-secondary);
+}
+
+.search input {
+  border: none;
+  background: transparent;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  flex: 1;
+  min-width: 0;
+}
+
+.search input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.searchIcon {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.searchIconBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-tertiary);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 2px 5px;
+  flex-shrink: 0;
+}
+
+.iconBtn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text-secondary);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+
+.iconBtn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-tertiary);
+}
+
+.badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+
+.newCaseBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: var(--radius-lg);
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+
+.newCaseBtn:hover {
+  background: var(--accent-strong);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 1024px) {
+  .menuBtn {
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 640px) {
+  .search {
+    order: 3;
+    width: 100%;
+    max-width: none;
+  }
+  .topnav {
+    padding: 16px;
+  }
+}
+.notifWrap {
+  position: relative;
+}
+
+.notifPanel {
+  /* Fallback position for the very first paint, before the on-open
+     measurement in TopNav.jsx sets an inline `position: fixed` with a
+     viewport-clamped left/top/width. That inline style is what actually
+     keeps the panel on screen on narrow viewports -- see the comment
+     above the `updatePosition` effect in TopNav.jsx. */
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 340px;
+  max-width: 84vw;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md, var(--shadow-sm));
+  overflow: hidden;
+  z-index: 999;
 }
 
 .notifHeader {

@@ -26,6 +26,7 @@ import {
 } from "../summary/summaryService.js";
 
 import { triggerReinvestigation } from "../../lib/reinvestigate.js";
+import { respondToLegalRequest } from "../../lib/respondToLegalRequest.js";
 // =========================================================
 // CREATE CASE
 // =========================================================
@@ -1157,116 +1158,15 @@ const recordLegalResponse = async (req, res) => {
     const { recordedBy: recordedByBody, notes, data = {} } = req.body;
     const recordedBy = recordedByBody || req.user?.username;
 
-    if (!recordedBy) {
-      return res.status(400).json({
-        success: false,
-        message: "recordedBy is required",
-      });
-    }
-
-    const caseData = await Case.findOne({ case_id });
-
-    if (!caseData) {
-      return res.status(404).json({
-        success: false,
-        message: "Case not found",
-      });
-    }
-
-    const requestData = caseData.requests.find(
-      (request) => request.requestId === requestId
-    );
-
-    if (!requestData) {
-      return res.status(404).json({
-        success: false,
-        message: "Legal request not found",
-      });
-    }
-
-    if (!["sent", "overdue"].includes(requestData.status)) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "A response can only be recorded for a sent (or overdue) request",
-      });
-    }
-
-    // -----------------------------------------------------
-    // MARK REQUEST COMPLETED
-    // -----------------------------------------------------
-
-    requestData.status = "completed";
-    requestData.response = {
-      receivedAt: new Date(),
+    const result = await respondToLegalRequest({
+      case_id,
+      requestId,
       recordedBy,
-      notes: notes || null,
+      notes,
       data,
-    };
-
-    // -----------------------------------------------------
-    // ATTACH STRUCTURED FIELDS AS CASE ENTITIES
-    // -----------------------------------------------------
-
-    const ENTITY_TYPE_LABELS = {
-      accountHolder: "ACCOUNT_HOLDER",
-      kycPhone: "KYC_PHONE",
-      kycAddress: "KYC_ADDRESS",
-      accountNumber: "ACCOUNT_NUMBER",
-      deviceId: "DEVICE_ID",
-      ipAddress: "IP_ADDRESS",
-      simOwner: "SIM_OWNER",
-      towerLocation: "TOWER_LOCATION",
-    };
-
-    const addedEntities = [];
-    for (const [field, value] of Object.entries(data)) {
-      if (!value || typeof value !== "string" || !value.trim()) continue;
-      const type = ENTITY_TYPE_LABELS[field] || field.toUpperCase();
-      const entity = {
-        type,
-        value: value.trim(),
-        confidence: null,
-        source: `request:${requestId}`,
-      };
-      caseData.entities.push(entity);
-      addedEntities.push(entity);
-    }
-
-    // -----------------------------------------------------
-    // AUDIT LOG
-    // -----------------------------------------------------
-
-    const auditEntry = createHashedAuditEntry({
-      action: "LEGAL_RESPONSE_RECEIVED",
-      actor: recordedBy,
-      details: {
-        requestId,
-        requestType: requestData.requestType,
-        provider: requestData.provider,
-        fieldsRecorded: Object.keys(data),
-      },
-      auditLog: caseData.auditLog,
     });
 
-    caseData.auditLog.push(auditEntry);
-
-    await caseData.save();
-
-    // -----------------------------------------------------
-    // TRIGGER RE-INVESTIGATION
-    // -----------------------------------------------------
-
-    triggerReinvestigation(caseData.case_id, "legal_response_received");
-
-    return res.status(200).json({
-      success: true,
-      message: "Legal response recorded successfully",
-      request: requestData,
-
-      suggestedNextSteps: getSuggestedNextSteps(requestData),
-      addedEntities,
-    });
+    return res.status(result.status).json(result.body);
   } catch (error) {
     console.error("Record legal response error:", error);
 

@@ -5,9 +5,12 @@ import StatCard from '../components/StatCard/StatCard'
 import CaseCard from '../components/CaseCard/CaseCard'
 import ActivityFeed from '../components/ActivityFeed/ActivityFeed'
 import QuickActions from '../components/QuickActions/QuickActions'
+import { FolderIcon } from '../components/Icons/Icons'
 import { apiBackend } from '../api/api'
 import { quickActions } from '../data/mockData'
 import styles from './Dashboard.module.css'
+import useDocumentTitle from '../hooks/useDocumentTitle'
+import { SkeletonRows } from '../components/Skeleton/Skeleton'
 
 // Presentation-only metadata for each stat -- the backend only knows counts,
 // not which icon/color a count should render with.
@@ -19,14 +22,20 @@ const STAT_CONFIG = [
 ]
 
 export default function Dashboard() {
+  useDocumentTitle('Dashboard')
+
   const navigate = useNavigate()
   const [stats, setStats] = useState(null)
   const [recentCases, setRecentCases] = useState([])
   const [activityFeed, setActivityFeed] = useState([])
+  const [loadingCases, setLoadingCases] = useState(true)
 
   useEffect(() => {
     apiBackend.get('/api/stats').then((res) => setStats(res.data)).catch(console.error)
-    apiBackend.get('/api/cases?limit=4').then((res) => setRecentCases(res.data)).catch(console.error)
+    apiBackend.get('/api/cases?limit=4')
+      .then((res) => setRecentCases(res.data))
+      .catch(console.error)
+      .finally(() => setLoadingCases(false))
     apiBackend.get('/api/activity?limit=4').then((res) => setActivityFeed(res.data)).catch(console.error)
   }, [])
 
@@ -68,9 +77,18 @@ export default function Dashboard() {
           </div>
 
           <div className={styles.caseList}>
-            {recentCases.map((c, i) => (
-              <CaseCard key={c.id} caseItem={c} index={i} onOpen={(id) => navigate(`/cases/${id}`)} />
-            ))}
+            {loadingCases ? (
+              <SkeletonRows count={4} />
+            ) : recentCases.length === 0 ? (
+              <div className={styles.emptyState}>
+                <FolderIcon width={28} height={28} />
+                <p>No investigations yet. Create a case to get started.</p>
+              </div>
+            ) : (
+              recentCases.map((c, i) => (
+                <CaseCard key={c.id} caseItem={c} index={i} onOpen={(id) => navigate(`/cases/${id}`)} />
+              ))
+            )}
           </div>
         </motion.section>
       </div>

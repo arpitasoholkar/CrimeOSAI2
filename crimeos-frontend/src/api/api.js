@@ -1,11 +1,11 @@
 import axios from "axios";
 
 export const apiBackend = axios.create({
-  baseURL: "http://localhost:3000",
+  baseURL: import.meta.env.VITE_BACKEND_URL,
 });
 
 export const apiBrain = axios.create({
-  baseURL: "http://localhost:3001",
+  baseURL: import.meta.env.VITE_BRAIN_URL,
 });
 
 // Attach the stored session token (if any) to every backend request.

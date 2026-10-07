@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { FileTextIcon, ImageIcon, AudioIcon, ChevronRightIcon, LockIcon, CheckCircleIcon, XCircleIcon } from '../Icons/Icons'
 import { apiBackend } from '../../api/api'
+import CopyButton from '../CopyButton/CopyButton'
 import styles from './CaseCard.module.css'
 
 const STATUS_STYLE = {
@@ -51,7 +52,10 @@ export default function CaseCard({ caseItem, index = 0, onOpen }) {
       transition={{ duration: 0.28, delay: index * 0.04, ease: [0.16, 1, 0.3, 1] }}
     >
       <div className={styles.identity}>
-        <p className={styles.id}>{id}</p>
+        <p className={styles.id}>
+          {id}
+          <CopyButton value={id} label="Copy case ID" size={12} />
+        </p>
         <p className={styles.title}>{title}</p>
       </div>
 

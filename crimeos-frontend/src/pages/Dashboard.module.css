@@ -61,6 +61,21 @@
   gap: 2px;
 }
 
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 48px 12px;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+.emptyState p {
+  margin: 0;
+  font-size: 13px;
+}
+
 .rightCol {
   display: flex;
   flex-direction: column;
