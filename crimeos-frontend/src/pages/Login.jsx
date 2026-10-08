@@ -1,20 +1,22 @@
 import { useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { GoogleLogin } from '@react-oauth/google'
 import { useAuth } from '../context/AuthContext'
-import { EyeIcon, ShieldLockIcon } from '../components/Icons/Icons'
+import { EyeIcon, ShieldLockIcon, MailIcon, LockIcon } from '../components/Icons/Icons'
 import styles from './Login.module.css'
 import useDocumentTitle from '../hooks/useDocumentTitle'
 
 export default function Login() {
   useDocumentTitle('Login')
 
-  const { loginWithGoogle } = useAuth()
+  const { loginWithGoogle, login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [identifier, setIdentifier] = useState('')
+  const [password, setPassword] = useState('')
 
   const redirectTo = location.state?.from || '/'
 
@@ -34,6 +36,21 @@ export default function Login() {
           err.message ||
           'Unable to sign in with Google. Please try again.'
       )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleEmailLogin = async (e) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    try {
+      await login(identifier.trim(), password)
+      navigate(redirectTo, { replace: true })
+    } catch (err) {
+      const data = err.response?.data
+      setError(data?.error || 'Unable to sign in. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -66,6 +83,36 @@ export default function Login() {
         <h1 className={styles.title}>Access your investigation workspace</h1>
         <p className={styles.subtitle}>Authorized personnel only.</p>
 
+        <form className={styles.form} onSubmit={handleEmailLogin}>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>Email or username</span>
+            <div className={styles.inputWrap}>
+              <MailIcon width={16} height={16} className={styles.inputIcon} />
+              <input type="text" value={identifier} onChange={(e) => setIdentifier(e.target.value)}
+                autoComplete="username" placeholder="you@unit.gov" required />
+            </div>
+          </label>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>Password</span>
+            <div className={styles.inputWrap}>
+              <LockIcon width={16} height={16} className={styles.inputIcon} />
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password" placeholder="Your password" required />
+            </div>
+          </label>
+          <button type="submit" className={styles.submitBtn} disabled={loading}>
+            {loading ? 'Signing in…' : 'Sign in'}
+          </button>
+        </form>
+
+        {error && (
+          <p className={styles.error} role="alert">
+            {error}
+          </p>
+        )}
+
+        <div className={styles.orDivider} aria-hidden="true"><span />or<span /></div>
+
         <div className={styles.googleWrap}>
           {loading ? (
             <div className={styles.googleLoading} role="status" aria-live="polite">
@@ -85,18 +132,15 @@ export default function Login() {
           )}
         </div>
 
-        {error && (
-          <p className={styles.error} role="alert">
-            {error}
-          </p>
-        )}
 
         <div className={styles.footerDivider} aria-hidden="true">
           <span />
           <ShieldLockIcon width={16} height={16} />
           <span />
         </div>
-        <p className={styles.footerText}>Secure authentication via Google</p>
+        <p className={styles.footerText}>
+          New here? <Link to="/register" className={styles.link}>Create an account</Link>
+        </p>
       </motion.div>
     </div>
   )

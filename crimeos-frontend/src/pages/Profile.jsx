@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { apiBackend } from '../api/api'
 import StatCard from '../components/StatCard/StatCard'
+import PasswordCard from '../components/PasswordCard/PasswordCard'
 import {
   CameraIcon,
   LogOutIcon,
@@ -342,6 +343,8 @@ export default function Profile() {
           </label>
         </div>
       </motion.section>
+
+      <PasswordCard />
     </div>
   )
 }

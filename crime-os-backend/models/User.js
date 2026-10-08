@@ -59,6 +59,15 @@ const userSchema = new mongoose.Schema(
       index: true,
     },
 
+    // Whether we have PROVEN the person controls this address.
+    //   true      -> signed in via Google (Google verified it)
+    //   false     -> email/password signup: address passed format + DNS checks
+    //                only, ownership NOT proven
+    //   undefined -> legacy accounts created before this field existed
+    // Google sign-in "wins" over an unproven (false) local account -- see
+    // routes/auth/authRoutes.js.
+    emailConfirmed: { type: Boolean },
+
     // ---- identity / profile ----
     name: {
       type: String,

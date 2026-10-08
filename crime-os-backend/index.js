@@ -20,6 +20,8 @@ import userRoutes from "./routes/users/userRoutes.js";
 import bankRoutes from "./routes/bank/bankRoutes.js";
 
 const app = express();
+// Behind Render/Vercel proxies: trust X-Forwarded-For so rate limits are per real client IP.
+app.set("trust proxy", 1);
 const PORT = process.env.PORT || 3000;
 
 // ============================

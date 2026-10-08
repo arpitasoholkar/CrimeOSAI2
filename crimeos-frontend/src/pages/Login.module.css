@@ -167,3 +167,20 @@
   font-size: 12px;
   color: var(--text-tertiary);
 }
+
+/* ---- email/password form + verification ---- */
+.orDivider { width:100%; display:flex; align-items:center; gap:10px; margin:18px 0 14px; font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-tertiary); }
+.orDivider span { flex:1; height:1px; background:var(--border); }
+.form { width:100%; display:flex; flex-direction:column; gap:12px; text-align:left; }
+.field { display:flex; flex-direction:column; gap:6px; }
+.fieldLabel { font-size:12px; color:var(--text-secondary); }
+.inputWrap { position:relative; }
+.inputWrap input { width:100%; box-sizing:border-box; padding:10px 12px 10px 36px; font:inherit; font-size:13.5px; color:var(--text-primary); background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius-sm); outline:none; transition:border-color var(--dur-fast); }
+.inputWrap input:focus { border-color:var(--accent); }
+.inputIcon { position:absolute; left:11px; top:50%; transform:translateY(-50%); color:var(--text-tertiary); pointer-events:none; }
+.submitBtn { margin-top:4px; padding:11px 14px; font:inherit; font-size:13.5px; font-weight:600; color:#fff; background:var(--accent); border:0; border-radius:var(--radius-sm); cursor:pointer; transition:background var(--dur-fast), opacity var(--dur-fast); }
+.submitBtn:hover:not(:disabled) { background:var(--accent-strong); }
+.submitBtn:disabled { opacity:.6; cursor:default; }
+.link { color:var(--accent); background:none; border:0; padding:0; font:inherit; cursor:pointer; text-decoration:none; }
+.link:hover { text-decoration:underline; }
+.link:disabled { color:var(--text-tertiary); cursor:default; text-decoration:none; }
