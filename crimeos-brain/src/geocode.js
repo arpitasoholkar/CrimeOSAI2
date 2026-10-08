@@ -57,7 +57,7 @@ async function geocodeWithGoogle(address, apiKey) {
 }
 
 async function geocodeWithNominatim(address) {
-  const url = `${NOMINATIM_URL}?q=${encodeURIComponent(address)}&format=json&limit=1`;
+  const url = `${NOMINATIM_URL}?q=${encodeURIComponent(address)}&format=json&limit=1&countrycodes=in`;
   const res = await fetch(url, {
     headers: {
       // Nominatim's usage policy requires a real identifying User-Agent.
@@ -76,6 +76,34 @@ async function geocodeWithNominatim(address) {
 }
 
 /**
+ * Build progressively less specific versions of an address, because
+ * Nominatim (OpenStreetMap) rarely knows shop numbers or market names:
+ *   "Shop No. 214, Millennium Textile Market, Ring Road, Surat, Gujarat 395002"
+ *   -> full string
+ *   -> "Millennium Textile Market, Ring Road, Surat, Gujarat 395002"
+ *   -> "Ring Road, Surat, Gujarat 395002"
+ *   -> "Surat, Gujarat 395002"   (last resort, only if 2+ parts remain)
+ */
+function buildCandidates(text) {
+  const parts = text
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  const candidates = [text];
+  for (let i = 1; i < parts.length - 0; i++) {
+    const rest = parts.slice(i);
+    if (rest.length < 2) break; // never fall back to a bare city
+    candidates.push(rest.join(", "));
+  }
+  // also try without a trailing postal code, which sometimes confuses matching
+  const noPin = text.replace(/\b\d{6}\b/g, "").replace(/\s+,/g, ",").trim();
+  if (noPin && noPin !== text) candidates.push(noPin);
+
+  return [...new Set(candidates)];
+}
+
+/**
  * Resolve a free-text location string to coordinates.
  * @param {string} address
  * @returns {Promise<{lat:number, lng:number, displayName:string}|null>}
@@ -86,20 +114,33 @@ export async function geocodeAddress(address) {
 
   if (cache.has(text)) return cache.get(text);
 
-  try {
-    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-    const result = await throttle(() =>
-      apiKey ? geocodeWithGoogle(text, apiKey) : geocodeWithNominatim(text)
-    );
-    cache.set(text, result);
-    return result;
-  } catch (err) {
-    console.error(`[geocode] Failed to geocode "${text}":`, err.message);
-    // Cache the miss too -- a temporarily-unresolvable/garbage address
-    // shouldn't be re-tried (and re-throttled) on every reinvestigation.
-    cache.set(text, null);
-    return null;
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  let hadNetworkError = false;
+
+  for (const candidate of buildCandidates(text)) {
+    try {
+      const result = await throttle(() =>
+        apiKey ? geocodeWithGoogle(candidate, apiKey) : geocodeWithNominatim(candidate)
+      );
+      if (result) {
+        console.log(
+          `[geocode] "${text}" -> matched via "${candidate}" (${result.lat}, ${result.lng})`
+        );
+        cache.set(text, result);
+        return result;
+      }
+    } catch (err) {
+      hadNetworkError = true;
+      console.error(`[geocode] Error geocoding "${candidate}":`, err.message);
+    }
   }
+
+  console.warn(`[geocode] No coordinates found for "${text}"`);
+  // Only remember a miss when the service answered "not found". If any
+  // request errored (network/rate limit), leave it uncached so the next
+  // re-investigation can try again instead of staying broken until restart.
+  if (!hadNetworkError) cache.set(text, null);
+  return null;
 }
 
 /**

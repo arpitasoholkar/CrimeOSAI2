@@ -117,11 +117,53 @@ export class SOPRetriever {
    * @returns {Promise<{chunk: Chunk, score: number}[]>}
    */
   async search(query, topK = 5) {
-    const queryVec = await embedText(query);
+    // FIX 1: remember query embeddings, so re-investigating the same
+    // complaint text never spends embedding quota a second time.
+    if (!this.queryCache) this.queryCache = new Map();
+
+    let queryVec = this.queryCache.get(query);
+    if (!queryVec) {
+      try {
+        queryVec = await embedText(query);
+        this.queryCache.set(query, queryVec);
+      } catch (err) {
+        // FIX 2: if the embedding API is rate-limited / down, don't kill
+        // the whole investigation. Fall back to simple keyword matching
+        // over the SOP chunks so the AI step can still run (retrieval is
+        // a bit less precise, the rest of the pipeline is unchanged).
+        console.warn(
+          `[retrieval] Embedding unavailable (${err.status || "error"}): ${err.message.slice(0, 120)}... ` +
+          `Falling back to keyword retrieval.`
+        );
+        return this.keywordSearch(query, topK);
+      }
+    }
+
     const scored = this.chunks.map((chunk, i) => ({
       chunk,
       score: cosineSimilarity(queryVec, this.vectors[i]),
     }));
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, topK);
+  }
+
+  /** Cheap, quota-free fallback: share of distinct query words found in each chunk. */
+  keywordSearch(query, topK = 5) {
+    const words = [
+      ...new Set(
+        query
+          .toLowerCase()
+          .replace(/[^a-z0-9\s]/g, " ")
+          .split(/\s+/)
+          .filter((w) => w.length > 3)
+      ),
+    ];
+    const scored = this.chunks.map((chunk) => {
+      const haystack = `${chunk.heading} ${chunk.text}`.toLowerCase();
+      const hits = words.reduce((n, w) => (haystack.includes(w) ? n + 1 : n), 0);
+      // scaled down so keyword matches never look as confident as real embeddings
+      return { chunk, score: words.length ? (hits / words.length) * 0.6 : 0 };
+    });
     scored.sort((a, b) => b.score - a.score);
     return scored.slice(0, topK);
   }
