@@ -1,115 +1,281 @@
 /**
  * llmExtract.js
  *
- * Calls the Gemini API to extract person names and detect language
- * (including romanized Hindi/Gujarati) from complaint text.
+ * Calls the Gemini API to extract person names, addresses and detect language
+ * from complaint text.
  *
- * SETUP:
- * 1. Get a free API key from https://aistudio.google.com ("Get API key")
- * 2. Copy .env.example to .env
- * 3. Paste your key into .env as GEMINI_API_KEY=...
+ * Model strategy:
  *
- * Until a real key is set, this module safely falls back to returning
- * empty names + "unknown" language rather than crashing the server —
- * so the rest of the pipeline keeps working while you're setting up.
+ *   Primary  -> gemini-flash-lite-latest
+ *   Fallback -> gemini-flash-latest
  *
- * FIX: "gemini-2.5-flash" was retired ("no longer available to new
- * users" — 404) and every call here was silently failing into the
- * empty-fallback path. Same underlying issue investigationEngine.js
- * (crimeos-brain) already hit and fixed; this file has its own,
- * separate Gemini call and needed the same fix independently.
+ * Both can be overridden through:
  *
- * Deliberately does NOT default to reading crimeos-brain's GEMINI_MODEL
- * env var -- that's a different service's config knob, and chaining to
- * it means an alias problem set there (e.g. "-latest", which resolved
- * to a model with a much stricter free-tier quota) would silently leak
- * into this module too. LLM_EXTRACT_MODEL is this module's own,
- * independent override.
+ *   LLM_EXTRACT_MODEL
+ *   LLM_EXTRACT_FALLBACK_MODEL
  */
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const PRIMARY_MODEL = process.env.LLM_EXTRACT_MODEL || "gemini-flash-latest";
-const FALLBACK_MODEL = process.env.LLM_EXTRACT_FALLBACK_MODEL || "gemini-flash-lite-latest";
+import dotenv from "dotenv";
 
-const PLACEHOLDER_VALUES = ["YOUR_GEMINI_API_KEY_HERE", "", undefined];
+dotenv.config();
+
+const GEMINI_API_KEY =
+  process.env.GEMINI_API_KEY;
+
+const PRIMARY_MODEL =
+  process.env.LLM_EXTRACT_MODEL ||
+  "gemini-flash-lite-latest";
+
+const FALLBACK_MODEL =
+  process.env.LLM_EXTRACT_FALLBACK_MODEL ||
+  "gemini-flash-latest";
+
+const PLACEHOLDER_VALUES = [
+  "YOUR_GEMINI_API_KEY_HERE",
+  "",
+  undefined,
+];
+
 const REQUEST_TIMEOUT_MS = 30_000;
+const MAX_WAIT_MS = 35_000;
 
 function buildUrl(model) {
   return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 }
 
-// Pulls Gemini's own suggested wait time out of the error body (either
-// the structured RetryInfo details, or the "Please retry in Ns" text
-// form seen in raw REST error bodies) instead of guessing with a fixed
-// schedule that's often far too short for a real quota reset.
 function extractRetryDelayMs(errBody) {
-  const structuredMatch = errBody.match(/"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/);
-  if (structuredMatch) return parseFloat(structuredMatch[1]) * 1000;
+  if (!errBody) return null;
 
-  const textMatch = errBody.match(/retry in (\d+(?:\.\d+)?)s/i);
-  if (textMatch) return parseFloat(textMatch[1]) * 1000;
+  /*
+   * Structured RetryInfo.
+   */
+  const structuredMatch =
+    errBody.match(
+      /"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/
+    );
+
+  if (structuredMatch) {
+    return (
+      Math.ceil(
+        parseFloat(
+          structuredMatch[1]
+        ) * 1000
+      ) + 500
+    );
+  }
+
+  /*
+   * Plain-text error:
+   * "Please retry in 28s"
+   */
+  const textMatch =
+    errBody.match(
+      /retry in (\d+(?:\.\d+)?)s/i
+    );
+
+  if (textMatch) {
+    return (
+      Math.ceil(
+        parseFloat(textMatch[1])
+      ) * 1000
+    ) + 500;
+  }
 
   return null;
 }
 
-// Single model, with retries on 429 (rate limit) / 503 (overloaded).
-// Returns the raw fetch Response on success. Throws an Error carrying
-// { status, body } on the final failed attempt, or immediately for a
-// non-retryable status (e.g. 404 model-not-found, 400 bad request).
-async function generateWithRetry(model, prompt, maxRetries = 3) {
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+async function generateWithRetry(
+  model,
+  prompt,
+  maxRetries = 3
+) {
+  for (
+    let attempt = 1;
+    attempt <= maxRetries;
+    attempt++
+  ) {
+    const controller =
+      new AbortController();
+
+    const timeoutId = setTimeout(
+      () =>
+        controller.abort(),
+      REQUEST_TIMEOUT_MS
+    );
 
     let response;
+
     try {
-      response = await fetch(`${buildUrl(model)}?key=${GEMINI_API_KEY}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0,
-            responseMimeType: "application/json",
+      response = await fetch(
+        `${buildUrl(model)}?key=${GEMINI_API_KEY}`,
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json",
           },
-        }),
-        signal: controller.signal,
-      });
+
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    text: prompt,
+                  },
+                ],
+              },
+            ],
+
+            generationConfig: {
+              temperature: 0,
+              responseMimeType:
+                "application/json",
+            },
+          }),
+
+          signal:
+            controller.signal,
+        }
+      );
+    } catch (err) {
+      if (
+        err.name ===
+        "AbortError"
+      ) {
+        const timeoutError =
+          new Error(
+            `Gemini request timed out after ${
+              REQUEST_TIMEOUT_MS / 1000
+            } seconds`
+          );
+
+        timeoutError.status =
+          408;
+
+        throw timeoutError;
+      }
+
+      throw err;
     } finally {
       clearTimeout(timeoutId);
     }
 
-    if (response.ok) return response;
+    if (response.ok) {
+      return response;
+    }
 
-    const errBody = await response.text();
-    const isRetryable = response.status === 429 || response.status === 503;
+    const errBody =
+      await response.text();
 
-    if (!isRetryable || attempt === maxRetries) {
-      const err = new Error(errBody);
-      err.status = response.status;
+    const isRetryable =
+      response.status === 429 ||
+      response.status === 503;
+
+    if (
+      !isRetryable ||
+      attempt === maxRetries
+    ) {
+      const err =
+        new Error(errBody);
+
+      err.status =
+        response.status;
+
+      err.body =
+        errBody;
+
       throw err;
     }
 
-    const serverDelay = extractRetryDelayMs(errBody);
-    const waitMs = serverDelay ?? attempt * 2000; // fall back to 2s, 4s, 6s if no hint given
+    const serverDelay =
+      extractRetryDelayMs(
+        errBody
+      );
+
+    const waitMs =
+      serverDelay ??
+      attempt * 2000;
+
+    /*
+     * Don't block the request for an
+     * unreasonable quota reset time.
+     */
+    if (
+      waitMs > MAX_WAIT_MS
+    ) {
+      const err =
+        new Error(
+          `Gemini requested a retry delay of ${(
+            waitMs / 1000
+          ).toFixed(1)}s, which exceeds the maximum wait time.`
+        );
+
+      err.status =
+        response.status;
+
+      err.body =
+        errBody;
+
+      throw err;
+    }
+
     console.log(
-      `[llmExtract] Gemini (${model}) returned ${response.status}, retrying in ${(waitMs / 1000).toFixed(1)}s (attempt ${attempt}/${maxRetries})...`
+      `[llmExtract] Gemini (${model}) returned ${
+        response.status
+      }, retrying in ${(
+        waitMs / 1000
+      ).toFixed(
+        1
+      )}s (attempt ${attempt}/${maxRetries})...`
     );
-    await new Promise((resolve) => setTimeout(resolve, waitMs));
+
+    await new Promise(
+      (resolve) =>
+        setTimeout(
+          resolve,
+          waitMs
+        )
+    );
   }
 }
 
-async function extractNamesAndLanguage(text) {
-  if (PLACEHOLDER_VALUES.includes(GEMINI_API_KEY)) {
+async function extractNamesAndLanguage(
+  text
+) {
+  if (
+    PLACEHOLDER_VALUES.includes(
+      GEMINI_API_KEY
+    )
+  ) {
     console.warn(
-      "[llmExtract] GEMINI_API_KEY not set (still a placeholder) — skipping LLM call, using fallback."
+      "[llmExtract] GEMINI_API_KEY not set — skipping LLM call, using fallback."
     );
-    return { names: [], addresses: [], language: "unknown", source: "fallback_no_key" };
+
+    return {
+      names: [],
+      addresses: [],
+      language: "unknown",
+      source: "fallback_no_key",
+    };
+  }
+
+  if (
+    !text ||
+    !text.trim()
+  ) {
+    return {
+      names: [],
+      addresses: [],
+      language: "unknown",
+      source: "empty_input",
+    };
   }
 
   const prompt = `You are analyzing a cyber-crime complaint filed with Indian police. The text may be in English, Hindi, Gujarati, or a mix — including romanized Hindi/Gujarati written using English letters (e.g. "mujhe paisa chahiye").
 
 Return ONLY a JSON object, with no other text and no markdown code fences, in exactly this shape:
+
 {
   "names": ["array of person names mentioned in the text — exclude company names, app names, and platform names"],
   "addresses": ["array of physical places/addresses mentioned in the text — shop fronts, delivery addresses, meeting spots, localities, landmarks, or any text describing where something happened or where someone can be found. Write each as the fullest address-like phrase found in the text (e.g. 'Shop No. 12, MG Road, Near City Mall, Surat' rather than just 'Surat'). Exclude bare city/state names with no other context. Empty array if none are mentioned."],
@@ -122,51 +288,138 @@ ${text}
 """`;
 
   let response;
+
+  /*
+   * Primary model.
+   */
   try {
-    response = await generateWithRetry(PRIMARY_MODEL, prompt);
+    response =
+      await generateWithRetry(
+        PRIMARY_MODEL,
+        prompt
+      );
   } catch (primaryErr) {
-    const isRetryable = primaryErr.status === 429 || primaryErr.status === 503;
+    const isRetryable =
+      primaryErr?.status ===
+        429 ||
+      primaryErr?.status ===
+        503;
+
     if (!isRetryable) {
-      console.error("[llmExtract] Gemini API returned an error:", primaryErr.status, primaryErr.message);
-      return { names: [], addresses: [], language: "unknown", source: "fallback_api_error" };
+      console.error(
+        "[llmExtract] Primary Gemini API error:",
+        primaryErr.status,
+        primaryErr.message
+      );
+
+      return {
+        names: [],
+        addresses: [],
+        language: "unknown",
+        source: "fallback_api_error",
+      };
     }
+
     console.log(
       `[llmExtract] Primary model (${PRIMARY_MODEL}) exhausted retries on ${primaryErr.status}, falling back to ${FALLBACK_MODEL}...`
     );
+
+    /*
+     * Fallback model.
+     */
     try {
-      response = await generateWithRetry(FALLBACK_MODEL, prompt);
+      response =
+        await generateWithRetry(
+          FALLBACK_MODEL,
+          prompt
+        );
     } catch (fallbackErr) {
-      console.error("[llmExtract] Gemini API returned an error:", fallbackErr.status, fallbackErr.message);
-      return { names: [], addresses: [], language: "unknown", source: "fallback_api_error" };
+      console.error(
+        "[llmExtract] Both Gemini models failed:",
+        fallbackErr.status,
+        fallbackErr.message
+      );
+
+      return {
+        names: [],
+        addresses: [],
+        language: "unknown",
+        source: "fallback_api_error",
+      };
     }
   }
 
   try {
-    const data = await response.json();
-    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const data =
+      await response.json();
+
+    const rawText =
+      data?.candidates?.[0]
+        ?.content?.parts?.[0]
+        ?.text;
 
     if (!rawText) {
-      console.error("[llmExtract] Gemini response had no text content:", JSON.stringify(data));
-      return { names: [], addresses: [], language: "unknown", source: "fallback_empty_response" };
+      console.error(
+        "[llmExtract] Gemini response had no text content:",
+        JSON.stringify(data)
+      );
+
+      return {
+        names: [],
+        addresses: [],
+        language: "unknown",
+        source:
+          "fallback_empty_response",
+      };
     }
 
-    const cleaned = rawText.replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(cleaned);
+    const cleaned =
+      rawText
+        .replace(
+          /```json|```/g,
+          ""
+        )
+        .trim();
+
+    const parsed =
+      JSON.parse(cleaned);
 
     return {
-      names: Array.isArray(parsed.names) ? parsed.names : [],
-      addresses: Array.isArray(parsed.addresses) ? parsed.addresses : [],
-      language: parsed.language || "unknown",
+      names: Array.isArray(
+        parsed.names
+      )
+        ? parsed.names
+        : [],
+
+      addresses:
+        Array.isArray(
+          parsed.addresses
+        )
+          ? parsed.addresses
+          : [],
+
+      language:
+        parsed.language ||
+        "unknown",
+
       source: "llm",
     };
   } catch (err) {
-    if (err.name === "AbortError") {
-      console.error(`[llmExtract] Gemini API call timed out after ${REQUEST_TIMEOUT_MS / 1000}s`);
-      return { names: [], addresses: [], language: "unknown", source: "fallback_timeout" };
-    }
-    console.error("[llmExtract] Failed to call or parse Gemini response:", err.message);
-    return { names: [], addresses: [], language: "unknown", source: "fallback_exception" };
+    console.error(
+      "[llmExtract] Failed to parse Gemini response:",
+      err.message
+    );
+
+    return {
+      names: [],
+      addresses: [],
+      language: "unknown",
+      source:
+        "fallback_exception",
+    };
   }
 }
 
-export { extractNamesAndLanguage };
+export {
+  extractNamesAndLanguage,
+};
