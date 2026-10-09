@@ -153,12 +153,23 @@ router.get("/me/stats", requireAuth, async (req, res) => {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ error: "User not found." });
 
-    const cases = await Case.find({ assignedTo: user.username }, "status").lean();
+    // An officer "owns" a case if they are on its investigators[] list, are
+    // its lead, or (legacy) it was assigned to them. This matches /cases/my.
+    const cases = await Case.find(
+      {
+        $or: [
+          { investigators: user.username },
+          { leadInvestigator: user.username },
+          { assignedTo: user.username },
+        ],
+      },
+      "status isCompleted"
+    ).lean();
 
     let solved = 0;
     let ongoing = 0;
     for (const c of cases) {
-      if (RESOLVED_STATUSES.includes(c.status)) solved += 1;
+      if (c.isCompleted || RESOLVED_STATUSES.includes(c.status)) solved += 1;
       else ongoing += 1;
     }
 

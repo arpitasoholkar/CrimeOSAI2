@@ -22,29 +22,12 @@ import styles from './Profile.module.css'
 import useDocumentTitle from '../hooks/useDocumentTitle'
 import { compressImage } from '../utils/compressImage'
 import { useToast } from '../context/ToastContext'
-
-function getInitials(name) {
-  if (!name) return '?'
-  const parts = name.trim().split(/\s+/)
-  const initials = parts.length === 1 ? parts[0].slice(0, 2) : parts[0][0] + parts[parts.length - 1][0]
-  return initials.toUpperCase()
-}
-
-const BACKEND_ORIGIN = 'http://localhost:3000'
-
-// See Sidebar.jsx -- avatarUrl can be a relative backend path or (for
-// some older Google accounts) an absolute external URL; only the
-// relative case needs our origin prefixed.
-function resolveAvatarSrc(avatarUrl) {
-  if (!avatarUrl) return null
-  if (/^https?:\/\//i.test(avatarUrl)) return avatarUrl
-  return `${BACKEND_ORIGIN}${avatarUrl}`
-}
+import { resolveAvatarSrc, getInitials } from '../utils/avatar'
 
 export default function Profile() {
   useDocumentTitle('Profile')
 
-  const { user, logout, updateUser } = useAuth()
+  const { user, logout, updateUser, refreshUser } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
   const fileInputRef = useRef(null)
@@ -61,19 +44,41 @@ export default function Profile() {
     if (user) setForm({ ...user })
   }, [user?.id])
 
+  const [statsError, setStatsError] = useState(false)
+
+  // Re-sync the profile from the server so the page never shows stale data.
   useEffect(() => {
+    refreshUser()
+  }, [refreshUser])
+
+  // Keep the edit form in sync when the user object changes (e.g. after refresh)
+  useEffect(() => {
+    if (user && !editing) setForm({ ...user })
+  }, [user, editing])
+
+  useEffect(() => {
+    let cancelled = false
     apiBackend
       .get('/api/users/me/stats')
-      .then((res) => setStats(res.data))
-      .catch(() => setStats({ totalCases: 0, solved: 0, ongoing: 0 }))
+      .then((res) => {
+        if (cancelled) return
+        setStats(res.data)
+        setStatsError(false)
+      })
+      .catch(() => {
+        if (!cancelled) setStatsError(true)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   if (!user || !form) return null
 
   const heroStats = [
-    { id: 'total', label: 'Total Cases', icon: 'folder', tone: 'accent', value: stats ? stats.totalCases : '—', trend: 'All time' },
-    { id: 'solved', label: 'Cases Solved', icon: 'check', tone: 'success', value: stats ? stats.solved : '—', trend: 'Resolved / closed' },
-    { id: 'ongoing', label: 'Ongoing Cases', icon: 'search', tone: 'violet', value: stats ? stats.ongoing : '—', trend: 'Active workload' },
+    { id: 'total', label: 'Total Cases', icon: 'folder', tone: 'accent', value: stats ? stats.totalCases : '—', trend: statsError ? 'Unavailable' : 'All time' },
+    { id: 'solved', label: 'Cases Solved', icon: 'check', tone: 'success', value: stats ? stats.solved : '—', trend: statsError ? 'Unavailable' : 'Resolved / closed' },
+    { id: 'ongoing', label: 'Ongoing Cases', icon: 'search', tone: 'violet', value: stats ? stats.ongoing : '—', trend: statsError ? 'Unavailable' : 'Active workload' },
   ]
 
   const handleFieldChange = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }))
@@ -158,7 +163,7 @@ export default function Profile() {
     navigate('/login', { replace: true })
   }
 
-  const avatarSrc = resolveAvatarSrc(form.avatarUrl)
+  const avatarSrc = resolveAvatarSrc(user.avatarUrl)
 
   return (
     <div className={styles.layout}>

@@ -19,6 +19,7 @@ import {
   ArchiveIcon,
 } from '../Icons/Icons'
 import styles from './Sidebar.module.css'
+import { resolveAvatarSrc, getInitials } from '../../utils/avatar'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: GridIcon, end: true },
@@ -29,25 +30,6 @@ const NAV_ITEMS = [
   { to: '/cases-archive', label: 'Cases Archive', icon: ArchiveIcon },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
 ]
-
-function getInitials(name) {
-  if (!name) return 'IN'
-  const parts = name.trim().split(/\s+/)
-  const initials = parts.length === 1 ? parts[0].slice(0, 2) : parts[0][0] + parts[parts.length - 1][0]
-  return initials.toUpperCase()
-}
-
-const BACKEND_ORIGIN = 'http://localhost:3000'
-
-// avatarUrl is normally a relative "/uploads/avatars/..." path served by
-// our own backend, but some accounts (e.g. older Google sign-ins) may
-// have an absolute external URL stored -- don't prefix those with our
-// origin or the <img> src ends up mangled and just shows a broken image.
-function resolveAvatarSrc(avatarUrl) {
-  if (!avatarUrl) return null
-  if (/^https?:\/\//i.test(avatarUrl)) return avatarUrl
-  return `${BACKEND_ORIGIN}${avatarUrl}`
-}
 
 function SidebarContent({ onNavigate }) {
   const { theme, toggleTheme } = useTheme()
@@ -160,7 +142,7 @@ function SidebarContent({ onNavigate }) {
     />
   ) : (
     <span className={styles.avatar}>
-      {getInitials(user?.name)}
+      {getInitials(user?.name, 'IN')}
     </span>
   )}
 
