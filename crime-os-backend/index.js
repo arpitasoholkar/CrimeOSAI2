@@ -18,6 +18,7 @@ import dashboardRouter from "./routes/dashboard.js";
 import authRoutes from "./routes/auth/authRoutes.js";
 import userRoutes from "./routes/users/userRoutes.js";
 import bankRoutes from "./routes/bank/bankRoutes.js";
+import { startSLAMonitor } from "./routes/requests/slaService.js";
 
 const app = express();
 // Behind Render/Vercel proxies: trust X-Forwarded-For so rate limits are per real client IP.
@@ -32,6 +33,9 @@ async function connectDB() {
     await mongoose.connect(process.env.MONGO_URI);
 
     console.log("✅ MongoDB connected");
+
+    // Flip sent requests to "overdue" once their SLA deadline passes.
+    startSLAMonitor();
   } catch (err) {
     console.error("❌ MongoDB connection failed:");
     console.error(err.message);

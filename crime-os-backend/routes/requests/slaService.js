@@ -1,10 +1,8 @@
-const cron = require("node-cron");
+import cron from "node-cron";
 
-const Case = require("../cases/caseModel");
+import Case from "../cases/caseModel.js";
 
-const {
-  createHashedAuditEntry,
-} = require("../audit/auditHashService");
+import { createHashedAuditEntry } from "../audit/auditHashService.js";
 // =========================================================
 // CHECK REQUEST DEADLINES
 // =========================================================
